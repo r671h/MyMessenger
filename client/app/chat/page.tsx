@@ -7,10 +7,10 @@ import {apiFetch} from '../../lib/api';
 import { LogOut, Send } from 'lucide-react';
 
 interface Message {
-    id: string,
-    content: string,
-    createdAt: string,
-    author: {id: string, username: string}
+  id: string;
+  content: string;
+  createdAt: string;
+  author: { id: string; username: string; avatarUrl: string | null };
 }
 
 interface User {
@@ -31,7 +31,17 @@ function colorForName(name: string) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-function Avatar({ username }: { username: string }) {
+function Avatar({ username, avatarUrl }: { username: string; avatarUrl?: string | null }) {
+  if (avatarUrl) {
+    return (
+      <img
+        src={`http://localhost:4000${avatarUrl}`}
+        alt={username}
+        className="w-9 h-9 rounded-full object-cover shrink-0"
+      />
+    );
+  }
+
   return (
     <div
       className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0"
@@ -153,7 +163,15 @@ export default function ChatPage() {
 
                 {currentUser && (
                 <div className="flex items-center gap-3">
-                    <span className="text-sm text-[#6C7883]">{currentUser.username}</span>
+                    <button
+                    onClick={() => router.push('/profile')}
+                    className="text-sm text-[#6C7883] hover:text-white"
+                    >
+                    {currentUser.username}
+                    </button>
+                    <button onClick={() => router.push('/messages')} className="text-sm text-[#3390EC]">
+                        Messages
+                    </button>
                     <button
                     onClick={handleLogout}
                     className="text-[#6C7883] hover:text-white transition-colors"
@@ -187,7 +205,7 @@ export default function ChatPage() {
                     >
                     {!isOwn && (
                         <div className="w-9 shrink-0">
-                        {isGroupStart && <Avatar username={msg.author.username} />}
+                            {isGroupStart && <Avatar username={msg.author.username} avatarUrl={msg.author.avatarUrl} />}
                         </div>
                     )}
 

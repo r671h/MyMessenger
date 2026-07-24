@@ -8,7 +8,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
     const messages = await prisma.message.findMany({
         orderBy: {createdAt: 'asc'},
         include: {
-            author: {select: {id:true, username: true}}
+            author: {select: {id:true, username: true, avatarUrl:true}}
         },
         take: 50
     });

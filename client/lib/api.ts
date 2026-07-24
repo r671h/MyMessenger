@@ -17,3 +17,18 @@ export async function apiFetch(path: string, options: RequestInit = {}){
 
     return res.json();
 }
+
+export async function apiUpload(path: string, formData: FormData) {
+    const res = await fetch(`${API_URL}${path}`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+    });
+
+    if(!res.ok){
+        const data = await res.json().catch(() => {});
+        throw new Error(data.error || 'Something went wrong');
+    }
+
+    return res.json();
+}

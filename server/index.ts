@@ -10,6 +10,9 @@ import jwt from "jsonwebtoken";
 import { prisma } from "./prismaClient";
 import messagesRoutes from './routes/messages';
 import { parseCookie } from "cookie";
+import path from 'path';
+import userRoutes from './routes/users';
+import conversationRoutes from './routes/conversation';
 
 const PORT = process.env.PORT || 4000;
 const app = express();
@@ -29,8 +32,12 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messagesRoutes);
+app.use('/api/users', userRoutes);
+app.use("/api/conversations", conversationRoutes)
 
 app.get("/api/health", (req: Request, res: Response) => {
     res.json({status: "ok"});
@@ -88,12 +95,55 @@ io.on("connection", async (socket)=> {
                 authorId: socket.userId!,
             },
             include: {
-                author: { select: {id: true, username:true}}
+                author: { select: {id: true, username:true,avatarUrl:true}}
             }
         });
 
         io.emit("message:new", message);
     });
+
+    socket.on("conversation:join",async (conversationId:string)=>{
+        const isParticipant = await prisma.conversationParticipant.findUnique({
+            where:{
+                conversationId_userId:{conversationId, userId:socket.userId!}
+            }
+        });
+
+        if(!isParticipant) {
+            return socket.emit('error',"Not authorized for this conversation");
+        }
+
+        socket.join(conversationId);
+    });
+
+    socket.on("conversation:leave",(conversationId:string)=>{
+        socket.leave(conversationId);
+    })
+
+    socket.on("dm:send",async ({conversationId,content}:{conversationId:string,content:string})=>{
+        if(!content || !content.trim()) return;
+
+        const isParticipant = await prisma.conversationParticipant.findUnique({
+            where:{
+                conversationId_userId:{conversationId:conversationId,userId:socket.userId!}
+            }
+        });
+
+        if(!isParticipant) return;
+
+        const message = await prisma.directMessage.create({
+            data:{
+                content,
+                conversationId,
+                senderId: socket.userId!
+            },
+            include:{
+                sender:{select:{id:true,username:true,avatarUrl:true}}
+            }
+        });
+
+        io.to(conversationId).emit("dm:new",message);
+    })
 
     socket.on("disconnect",() => {
         console.log("User disconnected: " + socket.data.username);
