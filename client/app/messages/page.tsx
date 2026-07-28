@@ -72,7 +72,7 @@ export default function MessagesPage(){
 
     return(
         <main className='flex flex-col h-screen bg-[#0E1621] text-[#E9EDF0]'>
-            <header className='px-4 px-3 border-b bprder-black/30 shrink-0 bg-[#17212B]'>
+            <header className='px-4 py-3 border-b bprder-black/30 shrink-0 bg-[#17212B]'>
                 <div className="flex items-center justify-between mb-3">
                 <h1 className="text-xl font-bold">Messages</h1>
                 <button onClick={() => router.push('/chat')} className="text-sm text-[#3390EC]">
@@ -98,7 +98,7 @@ export default function MessagesPage(){
                                 <Avatar user={user}/>
                                 <div>
                                     <p className='font-medium'>{user.username}</p>
-                                    {user.bio && <p className="text-xs text-[#6C7883] truncate max-w-[220px]">{user.bio}</p>}
+                                    {user.bio && <p className="text-xs text-[#6C7883] truncate max-w-220">{user.bio}</p>}
                                 </div>
                             </button>
                         ))

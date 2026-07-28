@@ -22,7 +22,11 @@ model User {
 
 model Message {
   id        String    @id @default(cuid())
-  content   String
+  content   String?
+  fileUrl   String?
+  fileName  String?
+  fileType  String?
+  fileSize  Int?
   createdAt DateTime  @default(now())
   author    User      @relation(fields: [authorId], references: [id])
   authorId  String
@@ -47,7 +51,11 @@ model ConversationParticipant {
 
 model DirectMessage {
   id             String       @id @default(cuid())
-  content        String
+  content        String?
+  fileUrl        String?
+  fileName       String?
+  fileSize       Int?
+  fileType       String?
   createdAt      DateTime     @default(now())
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id])

@@ -32,3 +32,9 @@ export async function apiUpload(path: string, formData: FormData) {
 
     return res.json();
 }
+
+export function formatFileSize(bytes:number){
+    if(bytes < 1024) return `${bytes} B`;
+    if(bytes < 1024 * 1024) return `${bytes/1024} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}

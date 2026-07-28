@@ -13,6 +13,7 @@ import { parseCookie } from "cookie";
 import path from 'path';
 import userRoutes from './routes/users';
 import conversationRoutes from './routes/conversation';
+import uploadRoutes from './routes/uploads'
 
 const PORT = process.env.PORT || 4000;
 const app = express();
@@ -38,6 +39,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/messages", messagesRoutes);
 app.use('/api/users', userRoutes);
 app.use("/api/conversations", conversationRoutes)
+app.use("/api/upload",uploadRoutes)
 
 app.get("/api/health", (req: Request, res: Response) => {
     res.json({status: "ok"});
@@ -86,12 +88,17 @@ io.on("connection", async (socket)=> {
         socket.broadcast.emit("typing:update", {userId: socket.userId, typing:false})
     });
 
-    socket.on("message:send", async (content: string)=> {
-        if (!content || !content.trim() ) return;
+    socket.on("message:send", async (data: {content?: string, fileType?:string, fileName?:string, fileSize?:number,fileUrl?:string})=> {
+        const {content,fileName,fileSize,fileType,fileUrl} = data;
+        if (!content?.trim() && !fileUrl) return;
 
         const message = await prisma.message.create({
             data:{
                 content,
+                fileName,
+                fileUrl,
+                fileSize,
+                fileType,
                 authorId: socket.userId!,
             },
             include: {
@@ -120,8 +127,9 @@ io.on("connection", async (socket)=> {
         socket.leave(conversationId);
     })
 
-    socket.on("dm:send",async ({conversationId,content}:{conversationId:string,content:string})=>{
-        if(!content || !content.trim()) return;
+    socket.on("dm:send",async (data : {conversationId:string,content?:string,fileName?:string,fileUrl?:string,fileType?:string,fileSize?:number})=>{
+        const {conversationId,content,fileName,fileSize,fileType,fileUrl} = data
+        if(!content?.trim() && fileUrl) return;
 
         const isParticipant = await prisma.conversationParticipant.findUnique({
             where:{
@@ -134,6 +142,10 @@ io.on("connection", async (socket)=> {
         const message = await prisma.directMessage.create({
             data:{
                 content,
+                fileName,
+                fileSize,
+                fileType,
+                fileUrl,
                 conversationId,
                 senderId: socket.userId!
             },
@@ -143,7 +155,7 @@ io.on("connection", async (socket)=> {
         });
 
         io.to(conversationId).emit("dm:new",message);
-    })
+    });
 
     socket.on("disconnect",() => {
         console.log("User disconnected: " + socket.data.username);

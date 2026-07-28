@@ -3,16 +3,26 @@
 import { useEffect, useState,useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
-import {apiFetch} from '../../lib/api';
-import { LogOut, Send } from 'lucide-react';
+import {apiFetch,apiUpload,formatFileSize} from '../../lib/api';
+import { FileIcon, LogOut, Send, X, Paperclip } from 'lucide-react';
 
 interface Message {
   id: string;
-  content: string;
+  content: string | null;
   createdAt: string;
   author: { id: string; username: string; avatarUrl: string | null };
+  fileUrl?: string,
+  fileName?: string,
+  fileType?: string,
+  fileSize?: number
 }
 
+interface Attachment {
+    fileUrl: string,
+    fileName: string,
+    fileType: string,
+    fileSize: number
+}
 interface User {
     id: string,
     email: string,
@@ -56,16 +66,51 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function AttachmentView ({ msg } : {msg:Message}) {
+    if(!msg.fileUrl) return null;
+    const url = `http://localhost:4000${msg.fileUrl}`
+    const isImage = msg.fileType?.startsWith("image/");
+
+    if(isImage){
+        return(
+            <a href={url} target="_blank" rel="noopener noreferrer">
+                <img
+                src={url}
+                alt={msg.fileName || 'attachment'}
+                className='flex items-center gap-2 bg-black/20 rounded-lg px-3 py-2 mb-1 hover:bg-black/30 transition-colors'
+                />
+            </a>
+        );
+    }
+
+    return(
+        <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className='rounded-lg max-w-240 max-h-240 object-cover mb-1'>
+            <FileIcon size={20} className='shrink-0'/>
+                <div className='min-w-0'>
+                    <p className='text-sm truncate'>{msg.fileName}</p>
+                    <p className='text-xs text-[#8FA3AD]'>{formatFileSize(msg.fileSize || 0)}</p>
+                </div>
+        </a>
+    )
+}
+
 export default function ChatPage() {
     const [typingUsers, setTypingUsers] = useState<Map<string,string>>(new Map());
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [messages,setMessages] = useState<Message[]>([]);
     const [input,setInput] = useState('');
     const [connected,setConnected] = useState(false);
-    const [currentUser, setCurrentUser] = useState<User | null>(null)
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
     const socketRef = useRef<Socket | null>(null);
     const router = useRouter();
-    const messagesEndRef = useRef<HTMLDivElement | null>(null)
+    const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const [uploading,setUploading] = useState(false);
+    const [pendingFile,setPendingFile] = useState<Attachment | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(()=>{
         //Load messahe history
@@ -85,6 +130,7 @@ export default function ChatPage() {
         socket.on('disconnect', ()=> setConnected(false));
 
         socket.on('message:new', (message: Message) => {
+            console.log('New message received:', message); // debug
             setMessages((prev) => [ ...prev, message ]);
         });
         socket.on('connect_error', (err) => {
@@ -92,7 +138,6 @@ export default function ChatPage() {
         });
 
         socket.on("typing:update", ({userId,username,typing} : {userId: string, username:string, typing:boolean}) => {
-            console.log('typing:update received:', userId, username, typing); // debug
             setTypingUsers((prev)=>{
                 const next = new Map(prev);
                 if(typing && username){
@@ -117,11 +162,15 @@ export default function ChatPage() {
     function handleSend(e: React.FormEvent){
         e.preventDefault();
         const socket = socketRef.current; 
-        if (!input.trim() || !socket) return;
-        socket.emit('message:send', input);
+        if ((!input.trim() && !pendingFile) || !socket) return;
+        socket.emit('message:send', {
+            content: input.trim() || undefined,
+            ...pendingFile,
+        });
         socket.emit('typing:stop');
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         setInput("");
+        setPendingFile(null);
     }
 
     async function handleLogout() {
@@ -141,6 +190,26 @@ export default function ChatPage() {
         typingTimeoutRef.current = setTimeout(()=>{
             socketRef.current?.emit('typing:stop');
         }, 1500)
+    }
+
+    async function handleFileSelect (e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if(!file) return;
+
+        setUploading(true);
+        try{
+            const formData = new FormData();
+            formData.append("file",file);
+            const result = await apiUpload(`/api/upload`,formData);
+            setPendingFile(result);
+        }
+        catch(err) {
+            alert((err as Error).message);
+        }
+        finally{
+            setUploading(false);
+            e.target.value = ''
+        }
     }
 
     return(
@@ -217,13 +286,14 @@ export default function ChatPage() {
                         }`}
                     >
                         {!isOwn && isGroupStart && (
-                        <p
-                            className="text-xs font-medium mb-0.5"
-                            style={{ color: colorForName(msg.author.username) }}
-                        >
-                            {msg.author.username}
-                        </p>
+                            <p
+                                className="text-xs font-medium mb-0.5"
+                                style={{ color: colorForName(msg.author.username) }}
+                            >
+                                {msg.author.username}
+                            </p>
                         )}
+                        <AttachmentView msg={msg}/>
                         <p className="wrap-break-words">{msg.content}</p>
                         <p className="text-[10px] text-[#8FA3AD] text-right mt-1">
                         {formatTime(msg.createdAt)}
@@ -246,24 +316,49 @@ export default function ChatPage() {
 
                 <div ref={messagesEndRef} />
             </div>
+            
+            {pendingFile && (
+                 <div className="flex items-center gap-2 px-4 py-2 bg-[#17212B] border-t border-black/30">
+                <FileIcon size={16} className="text-[#3390EC]" />
+                <span className="text-sm truncate flex-1">{pendingFile.fileName}</span>
+                <button onClick={() => setPendingFile(null)} className="text-[#6C7883] hover:text-white">
+                    <X size={16} />
+                </button>
+        </div>
+            )}
 
             <form
                 onSubmit={handleSend}
                 className="flex items-center gap-2 px-4 py-3 bg-[#17212B] border-t border-black/30 shrink-0"
             >
                 <input
-                className="flex-1 bg-[#242F3D] text-[#E9EDF0] placeholder-[#6C7883] rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#3390EC]"
-                value={input}
-                onChange={handleInputChange}
-                placeholder="Message"
+                    className='hidden'
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
                 />
                 <button
-                type="submit"
-                disabled={!input.trim()}
-                className="w-10 h-10 rounded-full bg-[#3390EC] disabled:bg-[#242F3D] disabled:text-[#6C7883] flex items-center justify-center text-white transition-colors shrink-0"
-                aria-label="Send message"
+                    type='button'
+                    onClick={()=> fileInputRef?.current?.click()}
+                    disabled={uploading}
+                    className='text-[#6C7883] hover:text-white transition-colors shrink-0'
+                    aria-label='Attach file'
                 >
-                <Send size={18} />
+                    <Paperclip size={20}/>
+                </button>
+                <input
+                    className="flex-1 bg-[#242F3D] text-[#E9EDF0] placeholder-[#6C7883] rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#3390EC]"
+                    value={input}
+                    onChange={handleInputChange}
+                    placeholder="Message"
+                />
+                <button
+                    type="submit"
+                    disabled={!input.trim() && !pendingFile}
+                    className="w-10 h-10 rounded-full bg-[#3390EC] disabled:bg-[#242F3D] disabled:text-[#6C7883] flex items-center justify-center text-white transition-colors shrink-0"
+                    aria-label="Send message"
+                >
+                    <Send size={18} />
                 </button>
             </form>
         </main>
