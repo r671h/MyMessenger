@@ -18,6 +18,7 @@ import uploadRoutes from './routes/uploads'
 const PORT = process.env.PORT || 4000;
 const app = express();
 const httpServer = createServer(app);
+const onlineUsers = new Map<string,number>();
 
 const io = new Server(httpServer, {
     cors: {
@@ -78,6 +79,13 @@ io.on("connection", async (socket)=> {
         select: {username: true}
     });
     socket.data.username = user?.username || "Someone";
+
+    const currentCount =  onlineUsers.get(socket.userId!) || 0;
+    onlineUsers.set(socket.userId!, currentCount + 1);
+    if(currentCount === 0) {
+        socket.broadcast.emit("presence:update", {userId: socket.userId, online: true});
+    }
+    socket.emit("presence:list", Array.from(onlineUsers.keys()));
     
     console.log("User connected: "+ socket.userId);
 
@@ -159,6 +167,15 @@ io.on("connection", async (socket)=> {
 
     socket.on("disconnect",() => {
         console.log("User disconnected: " + socket.data.username);
+    
+        const count = (onlineUsers.get(socket.userId!) || 1) - 1;
+        if(count <= 0) {
+            onlineUsers.delete(socket.userId!);
+            socket.broadcast.emit('presence:update', {userId:socket.userId,online:false});
+        }
+        else{
+            onlineUsers.set(socket.userId!,count);
+        }
     });
 });
 

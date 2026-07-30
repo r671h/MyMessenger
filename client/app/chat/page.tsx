@@ -90,10 +90,10 @@ function AttachmentView ({ msg } : {msg:Message}) {
         rel="noopener noreferrer"
         className='rounded-lg max-w-240 max-h-240 object-cover mb-1'>
             <FileIcon size={20} className='shrink-0'/>
-                <div className='min-w-0'>
-                    <p className='text-sm truncate'>{msg.fileName}</p>
-                    <p className='text-xs text-[#8FA3AD]'>{formatFileSize(msg.fileSize || 0)}</p>
-                </div>
+            <div className='min-w-0'>
+                <p className='text-sm truncate'>{msg.fileName}</p>
+                <p className='text-xs text-[#8FA3AD]'>{formatFileSize(msg.fileSize || 0)}</p>
+            </div>
         </a>
     )
 }

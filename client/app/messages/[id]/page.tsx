@@ -82,6 +82,8 @@ export default function DMPage(){
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [typingUser, setTypingUser] = useState<Map<string,string>>(new Map());
+    const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+
 
     useEffect(()=>{
         apiFetch('/api/auth/me')
@@ -116,6 +118,19 @@ export default function DMPage(){
                 }
                 return next;
             })
+        });
+
+        socket.on("presence:list",(userIds: string[]) => {
+            setOnlineUsers(new Set(userIds))
+        });
+
+        socket.on("presence:update", ({ userId,online} : {userId:string,online:boolean}) => {
+            setOnlineUsers((prev) => {
+                const next = new Set(prev);
+                if(online) next.add(userId);
+                else next.delete(userId);
+                return next;
+            });
         });
 
         return () => {
@@ -189,7 +204,14 @@ export default function DMPage(){
                     </div>
                 )
                 }
-                <p className="font-medium">{otherUser?.username || 'Loading...'}</p>
+                <div>
+                    <p className="font-medium">{otherUser?.username || 'Loading...'}</p>
+                    {otherUser && (
+                        <p className="text-xs text-[#6C7883]">
+                        {onlineUsers.has(otherUser.id) ? 'online' : 'offline'}
+                        </p>
+                    )}
+                </div>
             </header>
 
             <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1">
