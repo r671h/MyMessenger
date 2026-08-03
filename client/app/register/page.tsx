@@ -19,7 +19,7 @@ export default function RegisterPage() {
                 method: 'POST',
                 body: JSON.stringify({email,username,password}),
             });
-            router.push('/chat');
+            router.push('/messages');
         }   
         catch (err: any) {
             setError(err.message);

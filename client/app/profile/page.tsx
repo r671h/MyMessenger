@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch, apiUpload } from '@/src/lib/api';
+import { apiFetch, apiUpload, getApiUrl } from '@/src/lib/api';
 
 interface User {
   id: string;
@@ -88,7 +88,7 @@ export default function ProfilePage() {
           >
             {user.avatarUrl ? (
               <img
-                src={`http://localhost:4000${user.avatarUrl}`}
+                src={`${getApiUrl()}${user.avatarUrl}`}
                 alt="Avatar"
                 className="w-full h-full object-cover"
               />

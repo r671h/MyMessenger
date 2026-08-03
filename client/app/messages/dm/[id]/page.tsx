@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
-import { apiFetch } from '../../../../src/lib/api';
+import { apiFetch, getApiUrl } from '../../../../src/lib/api';
 import Avatar from '../../../../src/components/Avatar';
 import MessageBubble from '../../../../src/components/MessageBubble';
 import TypingDots from '../../../../src/components/TypingDots';
@@ -41,7 +41,7 @@ export default function DMPage() {
       .then((data) => setOtherLastReadAt(data.otherLastReadAt))
       .catch(() => {});
 
-    const socket = io('http://localhost:4000', { withCredentials: true });
+    const socket = io(getApiUrl(), { withCredentials: true });
     socketRef.current = socket;
 
     socket.emit('conversation:join', conversationId);

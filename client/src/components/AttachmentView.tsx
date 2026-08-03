@@ -1,12 +1,12 @@
 'use client';
 
 import { File as FileIcon } from 'lucide-react';
-import { formatFileSize } from '../lib/api';
+import { formatFileSize, getApiUrl } from '../lib/api';
 import type { ChatMessage } from '../types/chat';
 
 export default function AttachmentView({ msg }: { msg: ChatMessage }) {
   if (!msg.fileUrl) return null;
-  const url = `http://localhost:4000${msg.fileUrl}`;
+  const url = `${getApiUrl()}${msg.fileUrl}`;
   const isImage = msg.fileType?.startsWith('image/');
 
   if (isImage) {

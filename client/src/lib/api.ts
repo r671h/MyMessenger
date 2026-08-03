@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:4000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export async function apiFetch(path: string, options: RequestInit = {}){
     const res = await fetch(`${API_URL}${path}`, {
@@ -37,4 +37,8 @@ export function formatFileSize(bytes:number){
     if(bytes < 1024) return `${bytes} B`;
     if(bytes < 1024 * 1024) return `${bytes/1024} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function getApiUrl() {
+  return API_URL;
 }

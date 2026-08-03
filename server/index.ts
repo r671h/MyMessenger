@@ -20,16 +20,21 @@ const app = express();
 const httpServer = createServer(app);
 const onlineUsers = new Map<string,number>();
 
+const allowedOrigins = [
+  'http://localhost:3000',
+  process.env.FRONTEND_URL,
+].filter((origin): origin is string => Boolean(origin));
+
 const io = new Server(httpServer, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: allowedOrigins,
         credentials: true
     }
 });
 
 app.use(cors({
-    origin: "http://localhost:3000",
-    credentials: true
+  origin: allowedOrigins,
+  credentials: true,
 }));
 app.use(express.json());
 app.use(cookieParser());

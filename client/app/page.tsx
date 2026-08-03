@@ -12,7 +12,7 @@ export default function Home() {
       .then((res) =>res.json())
       .then((data: { status: string }) => setStatus(data.status))
       .catch(() => setStatus('Server not reachable'));
-    router.push('/login');
+    router.push('/register');
   }, []);
 
   return(
