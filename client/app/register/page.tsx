@@ -2,7 +2,7 @@
 
 import { useState} from 'react'
 import { useRouter } from 'next/navigation'
-import { apiFetch } from '../../lib/api'
+import { apiFetch } from '../../src/lib/api'
 
 export default function RegisterPage() {
     const [email, setEmail] = useState('');

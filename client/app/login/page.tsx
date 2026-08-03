@@ -2,7 +2,7 @@
 
 import {useState} from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch } from '../../lib/api';
+import { apiFetch } from '../../src/lib/api';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -19,7 +19,7 @@ export default function LoginPage() {
                 method: 'POST',
                 body: JSON.stringify({email,username,password})
             });
-            router.push('/chat');
+            router.push('/messages');
         }
         catch (err: any) {
             setError(err.message);

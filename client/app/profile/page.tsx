@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch, apiUpload } from '@/lib/api';
+import { apiFetch, apiUpload } from '@/src/lib/api';
 
 interface User {
   id: string;
