@@ -1,5 +1,6 @@
 'use client';
 
+import { getApiUrl } from '../lib/api';
 import { colorForName } from '../lib/avatarColors';
 
 interface AvatarProps {
@@ -14,7 +15,7 @@ export default function Avatar({ name, avatarUrl, online, size = 36 }: AvatarPro
 
   const content = avatarUrl ? (
     <img
-      src={`http://localhost:4000${avatarUrl}`}
+      src={`${getApiUrl()}${avatarUrl}`}
       alt={name}
       className="rounded-full object-cover"
       style={{ width: dimension, height: dimension }}

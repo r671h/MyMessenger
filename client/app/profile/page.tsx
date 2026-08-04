@@ -140,10 +140,10 @@ export default function ProfilePage() {
         </form>
 
         <button
-          onClick={() => router.push('/chat')}
+          onClick={() => router.push('/messages')}
           className="text-sm text-[#6C7883] hover:text-white"
         >
-          ← Back to chat
+          ← Back to messages
         </button>
       </div>
     </main>

@@ -11,9 +11,9 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
     console.log('GET /api/conversations hit, userId:', req.userId);
 
     const conversations = await prisma.conversation.findMany({
-      where: {
-        participants: { some: { userId: req.userId } },
-      },
+       where: {
+         participants: { some: { userId: req.userId, hiddenAt: null } },
+       },
       include: {
         participants: {
           include: {
@@ -137,5 +137,16 @@ router.get('/:id/read-status',requireAuth, async(req:AuthRequest,res:Response) =
 
   res.json({otherLastReadAt:otherParticipant.lastReadAt})
 })
+
+router.post('/:id/hide', requireAuth, async (req: AuthRequest, res: Response) => {
+  const conversationId = req.params.id as string;
+
+  await prisma.conversationParticipant.update({
+    where: { conversationId_userId: { conversationId, userId: req.userId! } },
+    data: { hiddenAt: new Date() },
+  });
+
+  res.json({ success: true });
+});
 
 export default router;

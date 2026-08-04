@@ -4,16 +4,19 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
 import { apiFetch, getApiUrl } from '../../../../src/lib/api';
+import { requestChatListRefresh } from '../../../../src/lib/chatListRefresh';
 import Avatar from '../../../../src/components/Avatar';
 import MessageBubble from '../../../../src/components/MessageBubble';
 import TypingDots from '../../../../src/components/TypingDots';
 import ChatInput from '../../../../src/components/ChatInput';
 import type { User, ChatMessage, Attachment } from '../../../../src/types/chat';
+import { MoreVertical, Trash2, LogOut, UserMinus } from 'lucide-react';
 
 interface GroupInfo {
   id: string;
   name: string;
   avatarUrl: string | null;
+  createdById: string;
   participants: { user: User }[];
 }
 
@@ -29,6 +32,7 @@ export default function GroupChatPage() {
   const [readStatus, setReadStatus] = useState<Map<string, string>>(new Map());
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     apiFetch('/api/auth/me')
@@ -77,6 +81,20 @@ export default function GroupChatPage() {
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
     });
 
+    socket.on('groupchat:removed', ({ groupChatId }: { groupChatId: string }) => {
+      if (groupChatId === groupId) {
+        alert('You were removed from this group');
+        router.push('/messages');
+      }
+    });
+
+    socket.on('groupchat:deleted', ({ groupChatId }: { groupChatId: string }) => {
+      if (groupChatId === groupId) {
+        alert('This group was deleted');
+        router.push('/messages');
+      }
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -115,13 +133,72 @@ export default function GroupChatPage() {
     socketRef.current?.emit('groupchat:react', { messageId, emoji });
   }
 
+  async function handleLeaveGroup() {
+    if (!confirm('Leave this group?')) return;
+    await apiFetch(`/api/groupchats/${groupId}/leave`, { method: 'POST' });
+    requestChatListRefresh();
+    router.push('/messages');
+  }
+
+  async function handleDeleteGroup() {
+    if (!confirm('Delete this group for everyone? This cannot be undone.')) return;
+    const memberIds = group?.participants.map((p) => p.user.id) || [];
+    await apiFetch(`/api/groupchats/${groupId}`, { method: 'DELETE' });
+    socketRef.current?.emit('groupchat:notify-deleted', { groupChatId: groupId, memberIds });
+    requestChatListRefresh();
+    router.push('/messages');
+  }
+
+  async function handleRemoveMember(userId: string) {
+    if (!confirm('Remove this member from the group?')) return;
+    await apiFetch(`/api/groupchats/${groupId}/members/${userId}`, { method: 'DELETE' });
+    socketRef.current?.emit('groupchat:notify-removed', { groupChatId: groupId, removedUserId: userId });
+    setGroup((prev) => prev && { ...prev, participants: prev.participants.filter((p) => p.user.id !== userId) });
+    requestChatListRefresh();
+  }
+
   return (
     <main className="flex flex-col h-full bg-[#0E1621] text-[#E9EDF0]">
       <header className="flex items-center gap-3 px-4 py-3 bg-[#17212B] border-b border-black/30 shrink-0">
         {group && <Avatar name={group.name} avatarUrl={group.avatarUrl} size={36} />}
-        <div>
+        <div className="flex-1">
           <p className="font-medium">{group?.name || 'Loading...'}</p>
           {group && <p className="text-xs text-[#6C7883]">{group.participants.length} members</p>}
+        </div>
+        <div className="relative">
+          <button onClick={() => setMenuOpen((v) => !v)} className="text-[#6C7883] hover:text-white p-1">
+            <MoreVertical size={18} />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 bg-[#242F3D] rounded-lg shadow-lg py-1 w-56 z-10">
+              {group?.participants.map((p) => (
+                <div key={p.user.id} className="flex items-center justify-between px-3 py-1.5 text-sm">
+                  <span className="truncate">{p.user.username}</span>
+                  {group.createdById === currentUser?.id && p.user.id !== currentUser?.id && (
+                    <button onClick={() => handleRemoveMember(p.user.id)} className="text-[#6C7883] hover:text-red-400">
+                      <UserMinus size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div className="border-t border-black/30 mt-1 pt-1">
+                <button
+                  onClick={handleLeaveGroup}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#E9EDF0] hover:bg-black/20 text-left"
+                >
+                  <LogOut size={14} /> Leave group
+                </button>
+                {group?.createdById === currentUser?.id && (
+                  <button
+                    onClick={handleDeleteGroup}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-black/20 text-left"
+                  >
+                    <Trash2 size={14} /> Delete group
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </header>
 

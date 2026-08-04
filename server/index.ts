@@ -248,6 +248,11 @@ io.on("connection", async (socket)=> {
             }
         });
 
+        await prisma.conversationParticipant.updateMany({
+            where: { conversationId },
+            data: { hiddenAt: null },
+        });
+
         const participants = await prisma.conversationParticipant.findMany(
             {
                 where:{conversationId},
@@ -387,7 +392,7 @@ io.on("connection", async (socket)=> {
         }
         });
 
-        socket.on("groupchat:react", async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
+    socket.on("groupchat:react", async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
         try {
             const message = await prisma.groupMessage.findUnique({ where: { id: messageId } });
             if (!message) return;
@@ -397,11 +402,11 @@ io.on("connection", async (socket)=> {
             });
 
             if (existing) {
-            await prisma.groupMessageReaction.delete({ where: { id: existing.id } });
+                    await prisma.groupMessageReaction.delete({ where: { id: existing.id } });
             } else {
-            await prisma.groupMessageReaction.create({
-                data: { messageId, userId: socket.userId!, emoji },
-            });
+                await prisma.groupMessageReaction.create({
+                    data: { messageId, userId: socket.userId!, emoji },
+                });            
             }
 
             const reactions = await prisma.groupMessageReaction.findMany({ where: { messageId } });
@@ -416,7 +421,17 @@ io.on("connection", async (socket)=> {
         } catch (err) {
             console.error("Error in groupchat:react handler:", err);
         }
+    });
+
+    socket.on("groupchat:notify-removed", async ({ groupChatId, removedUserId }: { groupChatId: string; removedUserId: string }) => {
+        io.to(`user:${removedUserId}`).emit("groupchat:removed", { groupChatId });
+    });
+
+    socket.on("groupchat:notify-deleted", async ({ groupChatId, memberIds }: { groupChatId: string; memberIds: string[] }) => {
+        memberIds.forEach((userId) => {
+            io.to(`user:${userId}`).emit("groupchat:deleted", { groupChatId });
         });
+    });
 
     socket.on("disconnect",() => {
         console.log("User disconnected: " + socket.data.username);

@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { io } from 'socket.io-client';
-import { Search, LogOut, Plus } from 'lucide-react';
+import { Search, LogOut, Plus, UserCircle } from 'lucide-react';
 import { apiFetch } from '../../src/lib/api';
+import { onChatListRefreshRequested } from '../../src/lib/chatListRefresh';
 import Avatar from '../../src/components/Avatar';
 
 interface UserSummary {
@@ -85,8 +86,17 @@ export default function Sidebar() {
     socket.on('dm:new', () => loadChats());
     socket.on('groupchat:new', () => loadChats());
 
+    socket.on('dm:updated', () => loadChats());
+    socket.on('groupchat:updated', () => loadChats());
+
+    socket.on('groupchat:removed', () => loadChats());
+    socket.on('groupchat:deleted', () => loadChats());
+
+    const unsubscribeRefresh = onChatListRefreshRequested(() => loadChats());
+
     return () => {
       socket.disconnect();
+      unsubscribeRefresh();
     };
   }, []);
 
@@ -129,6 +139,13 @@ export default function Sidebar() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        <button
+          onClick={() => router.push('/profile')}
+          className="text-[#6C7883] hover:text-white shrink-0"
+          aria-label="Your profile"
+        >
+          <UserCircle size={20} />
+        </button>
         <button
           onClick={() => router.push('/messages/new-group')}
           className="w-9 h-9 rounded-full bg-[#3390EC] flex items-center justify-center text-white shrink-0"

@@ -142,4 +142,53 @@ router.get('/:id/read-status', requireAuth, async (req: AuthRequest, res: Respon
   res.json(participants);
 });
 
+// LEAVE a group (any member, including yourself)
+router.post('/:id/leave', requireAuth, async (req: AuthRequest, res: Response) => {
+  const groupId = req.params.id as string;
+
+  await prisma.groupChatParticipant.delete({
+    where: { groupChatId_userId: { groupChatId: groupId, userId: req.userId! } },
+  });
+
+  res.json({ success: true });
+});
+
+// REMOVE a specific member (creator only)
+router.delete('/:id/members/:userId', requireAuth, async (req: AuthRequest, res: Response) => {
+  const groupId = req.params.id as string;
+  const targetUserId = req.params.userId as string;
+
+  const group = await prisma.groupChat.findUnique({ where: { id: groupId } });
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+  if (group.createdById !== req.userId) {
+    return res.status(403).json({ error: 'Only the group creator can remove members' });
+  }
+
+  await prisma.groupChatParticipant.delete({
+    where: { groupChatId_userId: { groupChatId: groupId, userId: targetUserId } },
+  });
+
+  res.json({ success: true });
+});
+
+// DELETE an entire group (creator only)
+router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  const groupId = req.params.id as string;
+
+  const group = await prisma.groupChat.findUnique({ where: { id: groupId } });
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+  if (group.createdById !== req.userId) {
+    return res.status(403).json({ error: 'Only the group creator can delete the group' });
+  }
+
+  await prisma.$transaction([
+    prisma.groupMessageReaction.deleteMany({ where: { message: { groupChatId: groupId } } }),
+    prisma.groupMessage.deleteMany({ where: { groupChatId: groupId } }),
+    prisma.groupChatParticipant.deleteMany({ where: { groupChatId: groupId } }),
+    prisma.groupChat.delete({ where: { id: groupId } }),
+  ]);
+
+  res.json({ success: true });
+});
+
 export default router;
