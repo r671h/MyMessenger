@@ -21,21 +21,31 @@ const httpServer = createServer(app);
 const onlineUsers = new Map<string,number>();
 
 const allowedOrigins = [
-  'http://localhost:3000',
+  "http://localhost:3000",
   process.env.FRONTEND_URL,
-].filter((origin): origin is string => Boolean(origin));
+];
+
+const corsOptions = {
+  origin: (origin: string | undefined, callback: any) => {
+    if (!origin) return callback(null, true);
+
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith(".vercel.app")
+    ) {
+      return callback(null, true);
+    }
+
+    callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+};
 
 const io = new Server(httpServer, {
-    cors: {
-        origin: allowedOrigins,
-        credentials: true
-    }
+  cors: corsOptions,
 });
 
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true,
-}));
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
