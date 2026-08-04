@@ -27,10 +27,11 @@ router.post('/register', async (req:Request, res:Response) => {
 
     const token = jwt.sign({userId : user.id}, JWT_SECRET, { expiresIn: '7d'});
 
-    res.cookie('token', token, {httpOnly: true, 
-        sameSite: 'lax',
-        secure: false,
-        maxAge: 7 * 24 * 60 * 60 * 1000  
+    res.cookie('token', token, {
+        httpOnly: true,
+        sameSite: 'none',
+        secure: true,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.status(201).json({id: user.id, email: user.email, username: user.username})
@@ -53,9 +54,9 @@ router.post('/login', async (req:Request, res:Response)=> {
 
     res.cookie('token', token, {
         httpOnly: true,
-        sameSite: 'lax',
-        secure: false,
-        maxAge: 7 * 24 * 60 * 60 * 1000
+        sameSite: 'none',
+        secure: true,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.json({ id: user.id, email: user.email, username: user.username });
@@ -75,7 +76,11 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
 });
 
 router.post('/logout',(req:Request, res:Response) => {
-    res.clearCookie('token')
+    res.clearCookie('token', {
+        httpOnly: true,
+        sameSite: 'none',
+        secure: true,
+    });
     res.json({message: "Logged out successfully"})
 });
 
