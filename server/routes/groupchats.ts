@@ -3,25 +3,19 @@ import {prisma} from "../prismaClient";
 import {requireAuth,AuthRequest} from "../middleware/auth";
 import multer from "multer";
 import path from "path";
+import { uploadToStorage } from "../lib/storage";
 
 const router = Router();
 
-const storage = multer.diskStorage({
-    destination: (req,file,cb) => {
-        cb(null, path.join(__dirname, '../uploads'));
-    },
-    filename: (req,file,cb) => {
-        const ext = path.extname(file.originalname);
-        cb(null, `group-${Date.now()}${ext}`);
-    }
-});
 const upload = multer({
-    storage,
-    limits:{fileSize: 5 * 1024 * 1024},
-    fileFilter: (req,file,cb) => {
-        if(!file.mimetype.startsWith('image/')) return cb(new Error('Only image files are allowed'));
-        cb(null,true);
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed'));
     }
+    cb(null, true);
+  },
 });
 
 //create group chat
@@ -31,7 +25,7 @@ router.post('/',requireAuth, upload.single('avatar'),async (req: AuthRequest,res
 
     if(!name?.trim()) return res.status(400).json({error: "Group name is required"});
 
-    const avatarUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    const avatarUrl = req.file ? await uploadToStorage(req.file.buffer, 'group-avatars') : null;
 
     const allMemberIds = Array.from(new Set([req.userId!, ...parsedMemberIds]));
 

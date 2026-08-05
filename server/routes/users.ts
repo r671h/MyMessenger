@@ -7,19 +7,9 @@ import { prisma } from '../prismaClient';
 const router = Router();
 
 // Configure where/how uploaded avatars are stored
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../uploads'));
-  },
-  filename: (req: AuthRequest, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${req.userId}-${Date.now()}${ext}`);
-  },
-});
-
 const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) {
       return cb(new Error('Only image files are allowed'));
@@ -52,7 +42,7 @@ router.post(
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const avatarUrl = `/uploads/${req.file.filename}`;
+    const avatarUrl = `/uploads/${req.file.buffer}`;
 
     const user = await prisma.user.update({
       where: { id: req.userId },
