@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { prisma } from '../prismaClient';
+import { uploadToStorage } from '../lib/storage';
 
 const router = Router();
 
@@ -42,15 +43,20 @@ router.post(
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const avatarUrl = `/uploads/${req.file.buffer}`;
+    try {
+      const avatarUrl = await uploadToStorage(req.file.buffer, 'avatars');
 
-    const user = await prisma.user.update({
-      where: { id: req.userId },
-      data: { avatarUrl },
-      select: { id: true, email: true, username: true, bio: true, avatarUrl: true },
-    });
+      const user = await prisma.user.update({
+        where: { id: req.userId },
+        data: { avatarUrl },
+        select: { id: true, email: true, username: true, bio: true, avatarUrl: true },
+      });
 
-    res.json(user);
+      res.json(user);
+    } catch (err) {
+      console.error('Error uploading avatar:', err);
+      res.status(500).json({ error: (err as Error).message || 'Upload failed' });
+    }
   }
 );
 
