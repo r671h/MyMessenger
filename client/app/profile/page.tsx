@@ -88,7 +88,7 @@ export default function ProfilePage() {
           >
             {user.avatarUrl ? (
               <img
-                src={`${getApiUrl()}${user.avatarUrl}`}
+                src={user.avatarUrl}
                 alt="Avatar"
                 className="w-full h-full object-cover"
               />

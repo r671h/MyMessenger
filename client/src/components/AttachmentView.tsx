@@ -6,7 +6,7 @@ import type { ChatMessage } from '../types/chat';
 
 export default function AttachmentView({ msg }: { msg: ChatMessage }) {
   if (!msg.fileUrl) return null;
-  const url = `${getApiUrl()}${msg.fileUrl}`;
+  const url = msg.fileUrl;;
   const isImage = msg.fileType?.startsWith('image/');
 
   if (isImage) {

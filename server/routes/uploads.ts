@@ -3,6 +3,7 @@ import multer from 'multer'
 import path from 'path'
 import { requireAuth,AuthRequest } from '../middleware/auth'
 import { error } from 'console';
+import { uploadToStorage } from '../lib/storage';
 
 const router = Router();
 
@@ -37,17 +38,23 @@ const upload = multer({
     }
 });
 
-router.post('/',requireAuth, upload.single('file'), (req:AuthRequest,res:Response) => {
-    if(!req.file) return res.status(400).json({error:"No file uploaded"});
+router.post('/', requireAuth, upload.single('file'), async (req: AuthRequest, res: Response) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
+  try {
     const properFileName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+    const fileUrl = await uploadToStorage(req.file.buffer, 'chat-files');
 
     res.status(201).json({
-        fileUrl: `/uploads/chat-files/${req.file.filename}`,
-        fileName: properFileName,
-        fileType: req.file.mimetype,
-        fileSize: req.file.size
+      fileUrl,
+      fileName: properFileName,
+      fileType: req.file.mimetype,
+      fileSize: req.file.size,
     });
-})
+  } catch (err) {
+    console.error('Error uploading file:', err);
+    res.status(500).json({ error: 'Upload failed' });
+  }
+});
 
 export default router;
