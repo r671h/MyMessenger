@@ -26,7 +26,7 @@ export async function apiUpload(path: string, formData: FormData) {
     });
 
     if(!res.ok){
-        const data = await res.json().catch(() => {});
+        const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Something went wrong');
     }
 

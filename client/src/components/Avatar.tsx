@@ -15,7 +15,7 @@ export default function Avatar({ name, avatarUrl, online, size = 36 }: AvatarPro
 
   const content = avatarUrl ? (
     <img
-      src={`${getApiUrl()}${avatarUrl}`}
+      src={avatarUrl}
       alt={name}
       className="rounded-full object-cover"
       style={{ width: dimension, height: dimension }}

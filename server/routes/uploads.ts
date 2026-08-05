@@ -52,9 +52,9 @@ router.post('/', requireAuth, upload.single('file'), async (req: AuthRequest, re
       fileSize: req.file.size,
     });
   } catch (err) {
-    console.error('Error uploading file:', err);
-    res.status(500).json({ error: 'Upload failed' });
-  }
+  console.error('Error uploading avatar:', err);
+  res.status(500).json({ error: (err as Error).message || 'Upload failed' });
+}
 });
 
 export default router;
