@@ -15,12 +15,20 @@ const ALLOWED_TYPES = [
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
     'application/vnd.ms-excel',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-    'text/plain'
+    'text/plain',
+    // Video types
+    'video/mp4',
+    'video/quicktime',      // .mov
+    'video/webm',
+    'video/x-msvideo',      // .avi
+    'video/x-matroska',     // .mkv
+    'video/mpeg',
+    'video/3gpp',
 ];
 
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits:{ fileSize: 1024 * 1024 * 20},
+    limits:{ fileSize: 1024 * 1024 * 24 }, // 24MB
     fileFilter: (req,file,cb) => {
         if(!ALLOWED_TYPES.includes(file.mimetype)) return cb(new Error('Unsupported filetype'));
         cb(null,true)
