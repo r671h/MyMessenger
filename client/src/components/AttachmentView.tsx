@@ -3,11 +3,17 @@
 import { File as FileIcon } from 'lucide-react';
 import { formatFileSize, getApiUrl } from '../lib/api';
 import type { ChatMessage } from '../types/chat';
+import { VideoPlayer } from './VideoPlayer';
 
 export default function AttachmentView({ msg }: { msg: ChatMessage }) {
   if (!msg.fileUrl) return null;
   const url = msg.fileUrl;;
   const isImage = msg.fileType?.startsWith('image/');
+  const isVideo = msg.fileType?.startsWith('video/');
+
+  if(isVideo) {
+    return(<VideoPlayer src={url} fileName={msg.fileName!} />);
+  }
 
   if (isImage) {
     return (
