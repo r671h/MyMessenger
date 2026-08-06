@@ -81,6 +81,7 @@ export default function Sidebar() {
         else next.delete(userId);
         return next;
       });
+      loadChats()
     });
 
     socket.on('dm:new', () => loadChats());
@@ -91,6 +92,8 @@ export default function Sidebar() {
 
     socket.on('groupchat:removed', () => loadChats());
     socket.on('groupchat:deleted', () => loadChats());
+
+    socket.on('dm:deleted', () => loadChats());
 
     const unsubscribeRefresh = onChatListRefreshRequested(() => loadChats());
 
