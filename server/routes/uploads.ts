@@ -18,19 +18,8 @@ const ALLOWED_TYPES = [
     'text/plain'
 ];
 
-const storage = multer.diskStorage({
-    destination:(req,file,cb) => {
-        cb(null,path.join(__dirname, '../uploads/chat-files'));
-    },
-    filename: (req:AuthRequest,file,cb) => {
-        const ext = path.extname(file.originalname);
-        const safeName = `${req.userId}-${Date.now()}${ext}`;
-        cb(null,safeName);
-    }
-});
-
 const upload = multer({
-    storage,
+    storage: multer.memoryStorage(),
     limits:{ fileSize: 1024 * 1024 * 20},
     fileFilter: (req,file,cb) => {
         if(!ALLOWED_TYPES.includes(file.mimetype)) return cb(new Error('Unsupported filetype'));
