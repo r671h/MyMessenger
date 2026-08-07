@@ -131,7 +131,7 @@ export default function Sidebar() {
   }
 
   return (
-    <div className="w-[340px] shrink-0 flex flex-col h-full bg-[#0E1621] border-r border-black/30">
+    <div className="w-full flex flex-col h-full bg-[#0E1621] border-r border-black/30">
       <div className="px-3 py-3 flex items-center gap-2 border-b border-black/30">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6C7883]" />

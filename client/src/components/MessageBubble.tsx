@@ -45,8 +45,8 @@ export default function MessageBubble({ msg, isOwn, showAvatarAndName, receipt, 
       )}
 
       {isOwn && !isDeleted && !isEditing && (
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 self-center">
-          <button onClick={() => setIsEditing(true)} className="text-[#6C7883] hover:text-white p-1" aria-label="Edit message">
+        <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center gap-1 self-center">          
+        <button onClick={() => setIsEditing(true)} className="text-[#6C7883] hover:text-white p-2" aria-label="Edit message">
             <Pencil size={14} />
           </button>
           <button onClick={() => onDelete?.(msg.id)} className="text-[#6C7883] hover:text-red-400 p-1" aria-label="Delete message">

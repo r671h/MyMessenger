@@ -21,7 +21,7 @@ export default function AttachmentView({ msg }: { msg: ChatMessage }) {
         <img
           src={url}
           alt={msg.fileName || 'attachment'}
-          className="rounded-lg max-w-240 max-h-240 object-cover mb-1"
+          className="rounded-lg max-w-30% max-h-20% object-cover mb-1"
         />
       </a>
     );

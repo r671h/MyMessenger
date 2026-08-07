@@ -10,8 +10,7 @@ import MessageBubble from '../../../../src/components/MessageBubble';
 import TypingDots from '../../../../src/components/TypingDots';
 import ChatInput from '../../../../src/components/ChatInput';
 import type { User, ChatMessage, Attachment } from '../../../../src/types/chat';
-import { MoreVertical, Trash2, LogOut, UserMinus } from 'lucide-react';
-
+import { ArrowLeft, MoreVertical, Trash2, LogOut, UserMinus } from 'lucide-react';
 interface GroupInfo {
   id: string;
   name: string;
@@ -160,6 +159,9 @@ export default function GroupChatPage() {
   return (
     <main className="flex flex-col h-full bg-[#0E1621] text-[#E9EDF0]">
       <header className="flex items-center gap-3 px-4 py-3 bg-[#17212B] border-b border-black/30 shrink-0">
+        <button onClick={() => router.push('/messages')} className="md:hidden text-[#6C7883] hover:text-white shrink-0">
+          <ArrowLeft size={20} />
+        </button>
         {group && <Avatar name={group.name} avatarUrl={group.avatarUrl} size={36} />}
         <div className="flex-1">
           <p className="font-medium">{group?.name || 'Loading...'}</p>
