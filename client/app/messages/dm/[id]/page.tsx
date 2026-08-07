@@ -155,7 +155,7 @@ export default function DMPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1">
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2">
         {messages.map((msg) => {
           const isOwn = msg.sender.id === currentUser?.id;
           const isRead = isOwn && !!otherLastReadAt && new Date(msg.createdAt) <= new Date(otherLastReadAt);

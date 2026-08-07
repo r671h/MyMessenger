@@ -38,9 +38,9 @@ export default function MessageBubble({ msg, isOwn, showAvatarAndName, receipt, 
 
   return (
     <div className={`group flex gap-2 ${isOwn ? 'justify-end' : 'justify-start'} ${showAvatarAndName ? 'mt-2' : 'mt-0.5'}`}>
-      {!isOwn && (
+      {!isOwn && showAvatarAndName && (
         <div className="w-9 shrink-0">
-          {showAvatarAndName && <Avatar name={msg.sender.username} avatarUrl={msg.sender.avatarUrl} size={36} />}
+          {<Avatar name={msg.sender.username} avatarUrl={msg.sender.avatarUrl} size={36} />}
         </div>
       )}
 
@@ -88,7 +88,7 @@ export default function MessageBubble({ msg, isOwn, showAvatarAndName, receipt, 
         ) : (
           <>
             <AttachmentView msg={msg} />
-            {msg.content && <p className="wrap-break-words">{msg.content}</p>}
+            {msg.content && <p className="break-words">{msg.content}</p>}
           </>
         )}
 
