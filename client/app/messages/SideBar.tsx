@@ -125,6 +125,29 @@ export default function Sidebar() {
     router.push(`/messages/dm/${conv.id}`);
   }
 
+  useEffect(() => {
+  if (!pathname) return;
+
+  const isDm = pathname.startsWith('/messages/dm/');
+  const isGroup = pathname.startsWith('/messages/group/');
+  if (!isDm && !isGroup) return;
+
+  const chatId = pathname.split('/').pop();
+  if (!chatId) return;
+
+  setChats((prevChats) =>
+    prevChats.map((c) => (c.id === chatId ? { ...c, unread: false } : c))
+  );
+
+  const endpoint = isDm
+    ? `/api/conversations/${chatId}/read`
+    : `/api/groupchats/${chatId}/read`;
+
+  apiFetch(endpoint, { method: 'POST' }).catch((err) => {
+    console.error('Failed to mark chat as read:', err);
+  });
+}, [pathname]);
+
   async function handleLogout() {
     await apiFetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');

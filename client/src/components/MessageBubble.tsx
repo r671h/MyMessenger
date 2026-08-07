@@ -65,7 +65,7 @@ export default function MessageBubble({ msg, isOwn, showAvatarAndName, receipt, 
         {isDeleted ? (
           <p className="italic text-[#8FA3AD]">This message was deleted</p>
         ) : isEditing ? (
-          <div className="flex flex-col gap-1.5 min-w-[180px]">
+          <div className="flex flex-col gap-1.5 min-w-45">
             <input
               autoFocus
               className="bg-black/20 rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-[#3390EC]"
@@ -88,7 +88,7 @@ export default function MessageBubble({ msg, isOwn, showAvatarAndName, receipt, 
         ) : (
           <>
             <AttachmentView msg={msg} />
-            {msg.content && <p className="break-words">{msg.content}</p>}
+            {msg.content && <p className="wrap-break-words">{msg.content}</p>}
           </>
         )}
 
