@@ -9,6 +9,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+    router.push('/register');
     fetch(`${getApiUrl()}/api/health`)
       .then((res) =>res.json())
       .then((data: { status: string }) => setStatus(data.status))

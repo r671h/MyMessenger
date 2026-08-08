@@ -88,7 +88,7 @@ export default function MessageBubble({ msg, isOwn, showAvatarAndName, receipt, 
         ) : (
           <>
             <AttachmentView msg={msg} />
-            {msg.content && <p className="break-words">{msg.content}</p>}
+            {msg.content && <p className="wrap-break-words">{msg.content}</p>}
           </>
         )}
 

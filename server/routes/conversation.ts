@@ -8,8 +8,6 @@ const router = Router();
 
 router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    console.log('GET /api/conversations hit, userId:', req.userId);
-
     const conversations = await prisma.conversation.findMany({
        where: {
          participants: { some: { userId: req.userId, hiddenAt: null } },
