@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
-import { apiFetch, getApiUrl } from '../../../../src/lib/api';
+import { apiFetch, getApiUrl, getToken } from '../../../../src/lib/api';
 import { requestChatListRefresh } from '../../../../src/lib/chatListRefresh';
 import Avatar from '../../../../src/components/Avatar';
 import MessageBubble from '../../../../src/components/MessageBubble';
@@ -46,7 +46,7 @@ export default function GroupChatPage() {
       }
     );
 
-    const socket = io(getApiUrl(), { withCredentials: true });
+    const socket = io(getApiUrl(), { withCredentials: true,auth: {token: getToken()} });
     socketRef.current = socket;
 
     socket.emit('groupchat:read', groupId);

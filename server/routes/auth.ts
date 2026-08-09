@@ -34,7 +34,7 @@ router.post('/register', async (req:Request, res:Response) => {
         maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    res.status(201).json({id: user.id, email: user.email, username: user.username})
+    res.status(201).json({id: user.id, email: user.email, username: user.username, token});
 })
 
 router.post('/login', async (req:Request, res:Response)=> {
@@ -59,7 +59,7 @@ router.post('/login', async (req:Request, res:Response)=> {
         maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    res.json({ id: user.id, email: user.email, username: user.username });
+    res.json({ id: user.id, email: user.email, username: user.username, token });
 })
 
 router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {

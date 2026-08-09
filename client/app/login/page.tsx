@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { apiFetch } from '../../src/lib/api';
+import { apiFetch,setToken } from '../../src/lib/api';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,10 +17,11 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await apiFetch('/api/auth/login', {
+      const data = await apiFetch('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
+      setToken(data.token);
       router.push('/messages');
     } catch (err) {
       setError((err as Error).message);

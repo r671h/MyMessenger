@@ -71,20 +71,27 @@ declare module 'socket.io' {
 
 io.use((socket, next) => {
     try {
-    const rawCookie = socket.handshake.headers.cookie || '';
 
-    const cookies = parseCookie(rawCookie);
-    const token = cookies.token;
+        const authToken = socket.handshake.auth?.token;
+        let token = authToken;
 
-    if (!token) {
-      return next(new Error('Not authenticated'));
-    }
+        if(!token){
+            const rawCookie = socket.handshake.headers.cookie || '';
+            const cookies = parseCookie(rawCookie);
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-    socket.userId = decoded.userId;
-    next();
+            token = cookies.token;
+        }
+        
+
+        if (!token) {
+        return next(new Error('Not authenticated'));
+        }
+
+        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+        socket.userId = decoded.userId;
+        next();
   } catch (err) {
-    next(new Error('Not authenticated'));
+        next(new Error('Not authenticated'));
   }
 });
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { io } from 'socket.io-client';
 import { Search, LogOut, Plus, UserCircle } from 'lucide-react';
-import { apiFetch, getApiUrl } from '../../src/lib/api';
+import { apiFetch, clearToken, getApiUrl, getToken } from '../../src/lib/api';
 import { onChatListRefreshRequested } from '../../src/lib/chatListRefresh';
 import Avatar from '../../src/components/Avatar';
 
@@ -71,7 +71,7 @@ export default function Sidebar() {
   useEffect(() => {
     loadChats();
 
-    const socket = io(`${getApiUrl()}`, { withCredentials: true });
+    const socket = io(`${getApiUrl()}`, { withCredentials: true,auth: {token: getToken()} });
 
     socket.on('presence:list', (userIds: string[]) => setOnlineUsers(new Set(userIds)));
     socket.on('presence:update', ({ userId, online }: { userId: string; online: boolean }) => {
@@ -150,6 +150,7 @@ export default function Sidebar() {
 
   async function handleLogout() {
     await apiFetch('/api/auth/logout', { method: 'POST' });
+    clearToken()
     router.push('/login');
   }
 
