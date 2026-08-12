@@ -32,5 +32,11 @@ export interface ChatMessage {
   fileSize?: number | null;
   sender: User;
   reactions?: Reaction[];
+  replyTo?: {
+    id: string;
+    content: string | null;
+    fileName?: string | null;
+    sender: { id: string; username: string };
+  } | null;
 }
 

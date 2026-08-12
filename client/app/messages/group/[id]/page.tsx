@@ -32,6 +32,7 @@ export default function GroupChatPage() {
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
 
   useEffect(() => {
     apiFetch('/api/auth/me')
@@ -111,12 +112,18 @@ export default function GroupChatPage() {
     return count;
   }
 
-  function handleSend(content: string | undefined, attachment: Attachment | null) {
-    socketRef.current?.emit('groupchat:send', {
+  function handleSend(content: string | undefined, attachment: Attachment | null, replyToId: string | null) {
+    socketRef.current?.emit('dm:send', {
       groupChatId: groupId,
       content,
+      replyToId,
       ...attachment,
     });
+  }
+
+  function handleQuoteClick(messageId: string) {
+    const el = document.getElementById(`msg-${messageId}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   function handleEdit(messageId: string, content: string) {
@@ -155,6 +162,8 @@ export default function GroupChatPage() {
     setGroup((prev) => prev && { ...prev, participants: prev.participants.filter((p) => p.user.id !== userId) });
     requestChatListRefresh();
   }
+
+  
 
   return (
     <main className="flex flex-col h-full bg-[#0E1621] text-[#E9EDF0]">
@@ -212,17 +221,21 @@ export default function GroupChatPage() {
           const seenCount = isOwn ? getSeenCount(msg.createdAt, msg.sender.id) : 0;
 
           return (
-            <MessageBubble
-              key={msg.id}
-              msg={msg}
-              isOwn={isOwn}
-              showAvatarAndName={showAvatarAndName}
-              receipt={isOwn ? <span>· {seenCount > 0 ? `Seen by ${seenCount}` : 'Sent'}</span> : undefined}
-              currentUserId={currentUser?.id}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onReact={handleReact}
-            />
+            <div key={msg.id} id={`msg-${msg.id}`}>
+              <MessageBubble
+                key={msg.id}
+                msg={msg}
+                isOwn={isOwn}
+                showAvatarAndName={showAvatarAndName}
+                receipt={isOwn ? <span>· {seenCount > 0 ? `Seen by ${seenCount}` : 'Sent'}</span> : undefined}
+                currentUserId={currentUser?.id}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onReact={handleReact}
+                onReply={setReplyTarget}
+                onQuoteClick={handleQuoteClick}
+              />
+            </div>
           );
         })}
 
@@ -240,6 +253,8 @@ export default function GroupChatPage() {
         onSend={handleSend}
         onTypingStart={() => socketRef.current?.emit('typing:start')}
         onTypingStop={() => socketRef.current?.emit('typing:stop')}
+        replyTarget={replyTarget}
+        onCancelReply={() => setReplyTarget(null)}
       />
     </main>
   );

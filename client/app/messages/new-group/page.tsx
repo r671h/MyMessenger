@@ -106,7 +106,7 @@ export default function NewGroupPage() {
           <p className="text-sm text-[#6C7883] mb-2">
             Add members {selectedIds.size > 0 && `(${selectedIds.size} selected)`}
           </p>
-          <div className="flex flex-col gap-1 max-h-[320px] overflow-y-auto">
+          <div className="flex flex-col gap-1 max-h-80 overflow-y-auto">
             {allUsers.map((user) => {
               const isSelected = selectedIds.has(user.id);
               return (

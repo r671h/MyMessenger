@@ -55,6 +55,9 @@ model DirectMessage {
   senderId       String
   sender         User         @relation(fields: [senderId], references: [id])
   reactions      DirectMessageReaction[]
+  replyToId      String?
+  replyTo        DirectMessage?  @relation("DMReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        DirectMessage[] @relation("DMReplies")
 }
 
 model GroupChat {
@@ -93,6 +96,9 @@ model GroupMessage {
   senderId    String
   sender      User      @relation(fields: [senderId], references: [id])
   reactions   GroupMessageReaction[]
+  replyToId   String?
+  replyTo     GroupMessage?  @relation("GroupReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     GroupMessage[] @relation("GroupReplies")
 }
 
 model DirectMessageReaction {

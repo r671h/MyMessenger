@@ -24,6 +24,7 @@ export default function DMPage() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [otherLastReadAt, setOtherLastReadAt] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -95,12 +96,18 @@ export default function DMPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isOtherTyping]);
 
-  function handleSend(content: string | undefined, attachment: Attachment | null) {
+  function handleSend(content: string | undefined, attachment: Attachment | null, replyToId: string | null) {
     socketRef.current?.emit('dm:send', {
       conversationId,
       content,
+      replyToId,
       ...attachment,
     });
+  }
+
+  function handleQuoteClick(messageId: string) {
+    const el = document.getElementById(`msg-${messageId}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   function handleEdit(messageId: string, content: string) {
@@ -161,21 +168,25 @@ export default function DMPage() {
           const isRead = isOwn && !!otherLastReadAt && new Date(msg.createdAt) <= new Date(otherLastReadAt);
 
           return (
-            <MessageBubble
-              key={msg.id}
-              msg={msg}
-              isOwn={isOwn}
-              showAvatarAndName={false} // DMs don't need repeated name/avatar per message, only 2 people
-              receipt={
-                isOwn ? (
-                  <span className={isRead ? 'text-[#3390EC]' : 'text-[#8FA3AD]'}>{isRead ? '✓✓' : '✓'}</span>
-                ) : undefined
-              }
-              currentUserId={currentUser?.id}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onReact={handleReact}
-            />
+            <div key={msg.id} id={`msg-${msg.id}`}>
+              <MessageBubble
+                key={msg.id}
+                msg={msg}
+                isOwn={isOwn}
+                showAvatarAndName={false} // DMs don't need repeated name/avatar per message, only 2 people
+                receipt={
+                  isOwn ? (
+                    <span className={isRead ? 'text-[#3390EC]' : 'text-[#8FA3AD]'}>{isRead ? '✓✓' : '✓'}</span>
+                  ) : undefined
+                }
+                currentUserId={currentUser?.id}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onReact={handleReact}
+                onReply={setReplyTarget}
+                onQuoteClick={handleQuoteClick}
+              />
+            </div>
           );
         })}
 
@@ -188,6 +199,8 @@ export default function DMPage() {
         onSend={handleSend}
         onTypingStart={() => socketRef.current?.emit('typing:start')}
         onTypingStop={() => socketRef.current?.emit('typing:stop')}
+        replyTarget={replyTarget}
+        onCancelReply={() => setReplyTarget(null)}
       />
     </main>
   );

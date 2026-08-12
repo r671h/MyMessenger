@@ -235,51 +235,40 @@ io.on("connection", async (socket)=> {
             });
     });
 
-    socket.on("dm:send",async (data : {conversationId:string,content?:string,fileName?:string,fileUrl?:string,fileType?:string,fileSize?:number})=>{
-        const {conversationId,content,fileName,fileSize,fileType,fileUrl} = data
-        if(!content?.trim() && !fileUrl) {
-            return;
-        }
+    socket.on("dm:send", async (data: { conversationId: string; content?: string; fileUrl?: string; fileName?: string; fileType?: string; fileSize?: number; replyToId?: string }) => {
+        try {
+            const { conversationId, content, fileUrl, fileName, fileType, fileSize, replyToId } = data;
+            if (!content?.trim() && !fileUrl) return;
 
-        const isParticipant = await prisma.conversationParticipant.findUnique({
-            where:{
-                conversationId_userId:{conversationId:conversationId,userId:socket.userId!}
-            }
-        });
+            const isParticipant = await prisma.conversationParticipant.findUnique({
+            where: { conversationId_userId: { conversationId, userId: socket.userId! } },
+            });
+            if (!isParticipant) return;
 
-        if(!isParticipant) return;
-
-        const message = await prisma.directMessage.create({
-            data:{
-                content,
-                fileName,
-                fileSize,
-                fileType,
-                fileUrl,
+            const message = await prisma.directMessage.create({
+            data: {
+                content: content || null,
+                fileUrl, fileName, fileType, fileSize,
                 conversationId,
-                senderId: socket.userId!
+                senderId: socket.userId!,
+                replyToId: replyToId || null,
             },
-            include:{
-                sender:{select:{id:true,username:true,avatarUrl:true}},
-                reactions: true,
-            }
-        });
+            include: {
+                sender: { select: { id: true, username: true, avatarUrl: true } },
+                replyTo: { include: { sender: { select: { id: true, username: true } } } },
+            },
+            });
 
-        await prisma.conversationParticipant.updateMany({
+            const participants = await prisma.conversationParticipant.findMany({
             where: { conversationId },
-            data: { hiddenAt: null },
-        });
-
-        const participants = await prisma.conversationParticipant.findMany(
-            {
-                where:{conversationId},
-                select:{userId:true}
-            }
-        )
-
-        participants.forEach((p)=>{
-            io.to(`user:${p.userId}`).emit("dm:new",{...message, conversationId});
-        })
+            select: { userId: true },
+            });
+            participants.forEach((p) => {
+            io.to(`user:${p.userId}`).emit("dm:new", { ...message, conversationId });
+            });
+        } catch (err) {
+            console.error("Error in dm:send handler:", err);
+        }
     });
 
     socket.on("dm:edit", async ({ messageId, content }: { messageId: string; content: string }) => {

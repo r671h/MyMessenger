@@ -119,6 +119,7 @@ router.get('/:id/messages', requireAuth, async (req: AuthRequest, res: Response)
     include: {
       sender: { select: { id: true, username: true, avatarUrl: true } },
       reactions: true,
+      replyTo: { include: { sender: { select: { id: true, username: true } } } },
     },
   });
 

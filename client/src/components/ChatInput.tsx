@@ -1,22 +1,30 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { Send, Paperclip, X, File as FileIcon } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
+import { Send, Paperclip, X, File as FileIcon, Reply } from 'lucide-react';
 import { apiUpload } from '../lib/api';
-import type { Attachment } from '../types/chat';
+import type { Attachment, ChatMessage } from '../types/chat';
 
 interface ChatInputProps {
-  onSend: (content: string | undefined, attachment: Attachment | null) => void;
+  onSend: (content: string | undefined, attachment: Attachment | null, replyToId: string | null) => void;
   onTypingStart?: () => void;
   onTypingStop?: () => void;
+  replyTarget?: ChatMessage | null;
+  onCancelReply?: () => void;
 }
 
-export default function ChatInput({ onSend, onTypingStart, onTypingStop }: ChatInputProps) {
+export default function ChatInput({ onSend, onTypingStart, onTypingStop, replyTarget, onCancelReply }: ChatInputProps) {
   const [input, setInput] = useState('');
   const [pendingFile, setPendingFile] = useState<Attachment | null>(null);
   const [uploading, setUploading] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Focus the text field automatically when a reply target is set — matches Telegram's feel
+  useEffect(() => {
+    if (replyTarget) textInputRef.current?.focus();
+  }, [replyTarget]);
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     setInput(e.target.value);
@@ -45,7 +53,8 @@ export default function ChatInput({ onSend, onTypingStart, onTypingStop }: ChatI
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim() && !pendingFile) return;
-    onSend(input.trim() || undefined, pendingFile);
+    onSend(input.trim() || undefined, pendingFile, replyTarget?.id || null);
+    onCancelReply?.();
     onTypingStop?.();
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     setInput('');
@@ -54,6 +63,21 @@ export default function ChatInput({ onSend, onTypingStart, onTypingStop }: ChatI
 
   return (
     <>
+      {replyTarget && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-[#17212B] border-t border-black/30">
+          <Reply size={16} className="text-[#3390EC] shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-[#3390EC]">Replying to {replyTarget.sender.username}</p>
+            <p className="text-xs text-[#8FA3AD] truncate">
+              {replyTarget.content || (replyTarget.fileName ? `📎 ${replyTarget.fileName}` : 'Message')}
+            </p>
+          </div>
+          <button onClick={onCancelReply} className="text-[#6C7883] hover:text-white shrink-0">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {pendingFile && (
         <div className="flex items-center gap-2 px-4 py-2 bg-[#17212B] border-t border-black/30">
           <FileIcon size={16} className="text-[#3390EC]" />
@@ -63,6 +87,7 @@ export default function ChatInput({ onSend, onTypingStart, onTypingStop }: ChatI
           </button>
         </div>
       )}
+
       <form onSubmit={handleSubmit} className="flex items-center gap-2 px-4 py-3 bg-[#17212B] border-t border-black/30 shrink-0">
         <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
         <button
@@ -75,6 +100,7 @@ export default function ChatInput({ onSend, onTypingStart, onTypingStop }: ChatI
           <Paperclip size={20} />
         </button>
         <input
+          ref={textInputRef}
           className="flex-1 bg-[#242F3D] text-[#E9EDF0] placeholder-[#6C7883] rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#3390EC]"
           value={input}
           onChange={handleInputChange}
