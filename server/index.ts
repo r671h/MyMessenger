@@ -122,9 +122,9 @@ io.on("connection", async (socket)=> {
         socket.broadcast.emit("typing:update", {userId: socket.userId, typing:false})
     });
 
-    socket.on("groupchat:send", async (data: { groupChatId: string; content?: string; fileName?: string; fileUrl?: string; fileType?: string; fileSize?: number }) => {
+    socket.on("groupchat:send", async (data: { groupChatId: string; content?: string; fileName?: string; fileUrl?: string; fileType?: string; fileSize?: number; replyToId: string }) => {
         try {
-            const { groupChatId, content, fileName, fileSize, fileType, fileUrl } = data;
+            const { groupChatId, content, fileUrl, fileName, fileType, fileSize, replyToId } = data;
             if (!content?.trim() && !fileUrl) return;
 
             const isParticipant = await prisma.groupChatParticipant.findUnique({
@@ -138,20 +138,20 @@ io.on("connection", async (socket)=> {
                 fileUrl, fileName, fileType, fileSize,
                 groupChatId,
                 senderId: socket.userId!,
+                replyToId: replyToId || null,
             },
             include: {
                 sender: { select: { id: true, username: true, avatarUrl: true } },
-                reactions: true,
+                replyTo: { include: { sender: { select: { id: true, username: true } } } },
             },
             });
 
-            const members = await prisma.groupChatParticipant.findMany({
+            const participants = await prisma.groupChatParticipant.findMany({
             where: { groupChatId },
             select: { userId: true },
             });
-
-            members.forEach((m) => {
-            io.to(`user:${m.userId}`).emit("groupchat:new", { ...message, groupChatId });
+            participants.forEach((p) => {
+            io.to(`user:${p.userId}`).emit("groupchat:new", { ...message, groupChatId });
             });
         } catch (err) {
             console.error("Error in groupchat:send handler:", err);

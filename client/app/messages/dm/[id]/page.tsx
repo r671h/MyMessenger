@@ -9,6 +9,7 @@ import Avatar from '../../../../src/components/Avatar';
 import MessageBubble from '../../../../src/components/MessageBubble';
 import TypingDots from '../../../../src/components/TypingDots';
 import ChatInput from '../../../../src/components/ChatInput';
+import ChatThreadSkeleton, { ChatHeaderSkeleton } from '../../../../src/components/skeletons/ChatThreadSkeleton';
 import type { User, ChatMessage, Attachment } from '../../../../src/types/chat';
 import { ArrowLeft, MoreVertical, Trash2 } from 'lucide-react';
 
@@ -20,6 +21,7 @@ export default function DMPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [otherUser, setOtherUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [otherLastReadAt, setOtherLastReadAt] = useState<string | null>(null);
@@ -39,7 +41,10 @@ export default function DMPage() {
       if (conv) setOtherUser(conv.otherUser);
     });
 
-    apiFetch(`/api/conversations/${conversationId}/messages`).then(setMessages);
+    apiFetch(`/api/conversations/${conversationId}/messages`).then((data) => {
+      setMessages(data);
+      setMessagesLoaded(true);
+    });
 
     apiFetch(`/api/conversations/${conversationId}/read-status`)
       .then((data) => setOtherLastReadAt(data.otherLastReadAt))
@@ -132,36 +137,41 @@ export default function DMPage() {
 
   return (
     <main className="flex flex-col h-full bg-[#0E1621] text-[#E9EDF0]">
-      <header className="flex items-center gap-3 px-4 py-3 bg-[#17212B] border-b border-black/30 shrink-0">
-        <button onClick={() => router.push('/messages')} className="md:hidden text-[#6C7883] hover:text-white shrink-0">
-          <ArrowLeft size={20} />
-        </button>
-        {otherUser && <Avatar name={otherUser.username} avatarUrl={otherUser.avatarUrl} size={36} />}
-        <div className="flex-1">
-          <p className="font-medium">{otherUser?.username || 'Loading...'}</p>
-          {otherUser && (
+      {!otherUser ? (
+        <ChatHeaderSkeleton />
+      ) : (
+        <header className="flex items-center gap-3 px-4 py-3 bg-[#17212B] border-b border-black/30 shrink-0">
+          <button onClick={() => router.push('/messages')} className="md:hidden text-[#6C7883] hover:text-white shrink-0">
+            <ArrowLeft size={20} />
+          </button>
+          <Avatar name={otherUser.username} avatarUrl={otherUser.avatarUrl} size={36} />
+          <div className="flex-1">
+            <p className="font-medium">{otherUser.username}</p>
             <p className="text-xs text-[#6C7883]">
               {onlineUsers.has(otherUser.id) ? 'online' : 'offline'}
             </p>
-          )}
-        </div>
-        <div className="relative">
-          <button onClick={() => setMenuOpen((v) => !v)} className="text-[#6C7883] hover:text-white p-1">
-            <MoreVertical size={18} />
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 bg-[#242F3D] rounded-lg shadow-lg py-1 w-44 z-10">
-              <button
-                onClick={handleDeleteChat}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-black/20 text-left"
-              >
-                <Trash2 size={14} /> Delete chat
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+          </div>
+          <div className="relative">
+            <button onClick={() => setMenuOpen((v) => !v)} className="text-[#6C7883] hover:text-white p-1">
+              <MoreVertical size={18} />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 bg-[#242F3D] rounded-lg shadow-lg py-1 w-44 z-10">
+                <button
+                  onClick={handleDeleteChat}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-black/20 text-left"
+                >
+                  <Trash2 size={14} /> Delete chat
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+      )}
 
+      {!messagesLoaded ? (
+        <ChatThreadSkeleton />
+      ) : (
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2">
         {messages.map((msg) => {
           const isOwn = msg.sender.id === currentUser?.id;
@@ -194,6 +204,7 @@ export default function DMPage() {
 
         <div ref={messagesEndRef} />
       </div>
+      )}
 
       <ChatInput
         onSend={handleSend}

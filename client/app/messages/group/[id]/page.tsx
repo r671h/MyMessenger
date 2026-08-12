@@ -9,6 +9,7 @@ import Avatar from '../../../../src/components/Avatar';
 import MessageBubble from '../../../../src/components/MessageBubble';
 import TypingDots from '../../../../src/components/TypingDots';
 import ChatInput from '../../../../src/components/ChatInput';
+import ChatThreadSkeleton, { ChatHeaderSkeleton } from '../../../../src/components/skeletons/ChatThreadSkeleton';
 import type { User, ChatMessage, Attachment } from '../../../../src/types/chat';
 import { ArrowLeft, MoreVertical, Trash2, LogOut, UserMinus } from 'lucide-react';
 interface GroupInfo {
@@ -27,6 +28,7 @@ export default function GroupChatPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [group, setGroup] = useState<GroupInfo | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Map<string, string>>(new Map());
   const [readStatus, setReadStatus] = useState<Map<string, string>>(new Map());
   const socketRef = useRef<Socket | null>(null);
@@ -40,7 +42,10 @@ export default function GroupChatPage() {
       .catch(() => router.push('/login'));
 
     apiFetch(`/api/groupchats/${groupId}`).then(setGroup);
-    apiFetch(`/api/groupchats/${groupId}/messages`).then(setMessages);
+    apiFetch(`/api/groupchats/${groupId}/messages`).then((data) => {
+      setMessages(data);
+      setMessagesLoaded(true);
+    });
     apiFetch(`/api/groupchats/${groupId}/read-status`).then(
       (data: { userId: string; lastReadAt: string }[]) => {
         setReadStatus(new Map(data.map((r) => [r.userId, r.lastReadAt])));
@@ -113,7 +118,7 @@ export default function GroupChatPage() {
   }
 
   function handleSend(content: string | undefined, attachment: Attachment | null, replyToId: string | null) {
-    socketRef.current?.emit('dm:send', {
+    socketRef.current?.emit('groupchat:send', {
       groupChatId: groupId,
       content,
       replyToId,
@@ -167,52 +172,59 @@ export default function GroupChatPage() {
 
   return (
     <main className="flex flex-col h-full bg-[#0E1621] text-[#E9EDF0]">
-      <header className="flex items-center gap-3 px-4 py-3 bg-[#17212B] border-b border-black/30 shrink-0">
-        <button onClick={() => router.push('/messages')} className="md:hidden text-[#6C7883] hover:text-white shrink-0">
-          <ArrowLeft size={20} />
-        </button>
-        {group && <Avatar name={group.name} avatarUrl={group.avatarUrl} size={36} />}
-        <div className="flex-1">
-          <p className="font-medium">{group?.name || 'Loading...'}</p>
-          {group && <p className="text-xs text-[#6C7883]">{group.participants.length} members</p>}
-        </div>
-        <div className="relative">
-          <button onClick={() => setMenuOpen((v) => !v)} className="text-[#6C7883] hover:text-white p-1">
-            <MoreVertical size={18} />
+      {!group ? (
+        <ChatHeaderSkeleton />
+      ) : (
+        <header className="flex items-center gap-3 px-4 py-3 bg-[#17212B] border-b border-black/30 shrink-0">
+          <button onClick={() => router.push('/messages')} className="md:hidden text-[#6C7883] hover:text-white shrink-0">
+            <ArrowLeft size={20} />
           </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 bg-[#242F3D] rounded-lg shadow-lg py-1 w-56 z-10">
-              {group?.participants.map((p) => (
-                <div key={p.user.id} className="flex items-center justify-between px-3 py-1.5 text-sm">
-                  <span className="truncate">{p.user.username}</span>
-                  {group.createdById === currentUser?.id && p.user.id !== currentUser?.id && (
-                    <button onClick={() => handleRemoveMember(p.user.id)} className="text-[#6C7883] hover:text-red-400">
-                      <UserMinus size={14} />
+          <Avatar name={group.name} avatarUrl={group.avatarUrl} size={36} />
+          <div className="flex-1">
+            <p className="font-medium">{group.name}</p>
+            <p className="text-xs text-[#6C7883]">{group.participants.length} members</p>
+          </div>
+          <div className="relative">
+            <button onClick={() => setMenuOpen((v) => !v)} className="text-[#6C7883] hover:text-white p-1">
+              <MoreVertical size={18} />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 bg-[#242F3D] rounded-lg shadow-lg py-1 w-56 z-10">
+                {group.participants.map((p) => (
+                  <div key={p.user.id} className="flex items-center justify-between px-3 py-1.5 text-sm">
+                    <span className="truncate">{p.user.username}</span>
+                    {group.createdById === currentUser?.id && p.user.id !== currentUser?.id && (
+                      <button onClick={() => handleRemoveMember(p.user.id)} className="text-[#6C7883] hover:text-red-400">
+                        <UserMinus size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <div className="border-t border-black/30 mt-1 pt-1">
+                  <button
+                    onClick={handleLeaveGroup}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#E9EDF0] hover:bg-black/20 text-left"
+                  >
+                    <LogOut size={14} /> Leave group
+                  </button>
+                  {group.createdById === currentUser?.id && (
+                    <button
+                      onClick={handleDeleteGroup}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-black/20 text-left"
+                    >
+                      <Trash2 size={14} /> Delete group
                     </button>
                   )}
                 </div>
-              ))}
-              <div className="border-t border-black/30 mt-1 pt-1">
-                <button
-                  onClick={handleLeaveGroup}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#E9EDF0] hover:bg-black/20 text-left"
-                >
-                  <LogOut size={14} /> Leave group
-                </button>
-                {group?.createdById === currentUser?.id && (
-                  <button
-                    onClick={handleDeleteGroup}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-black/20 text-left"
-                  >
-                    <Trash2 size={14} /> Delete group
-                  </button>
-                )}
               </div>
-            </div>
-          )}
-        </div>
-      </header>
+            )}
+          </div>
+        </header>
+      )}
 
+      {!messagesLoaded ? (
+        <ChatThreadSkeleton />
+      ) : (
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col justify-end gap-1">
         {messages.map((msg, i) => {
           const isOwn = msg.sender.id === currentUser?.id;
@@ -248,6 +260,7 @@ export default function GroupChatPage() {
 
         <div ref={messagesEndRef} />
       </div>
+      )}
 
       <ChatInput
         onSend={handleSend}

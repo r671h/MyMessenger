@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, apiUpload, getApiUrl } from '@/src/lib/api';
+import ProfileSkeleton from '@/src/components/skeletons/ProfileSkeleton';
 
 interface User {
   id: string;
@@ -66,11 +67,7 @@ export default function ProfilePage() {
   }
 
   if (!user) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0E1621] text-[#E9EDF0]">
-        Loading...
-      </main>
-    );
+    return <ProfileSkeleton />;
   }
 
   return (

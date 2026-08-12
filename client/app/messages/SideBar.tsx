@@ -7,6 +7,7 @@ import { Search, LogOut, Plus, UserCircle } from 'lucide-react';
 import { apiFetch, clearToken, getApiUrl, getToken } from '../../src/lib/api';
 import { onChatListRefreshRequested } from '../../src/lib/chatListRefresh';
 import Avatar from '../../src/components/Avatar';
+import ChatListSkeleton from '../../src/components/skeletons/ChatListSkeleton';
 
 interface UserSummary {
   id: string;
@@ -28,6 +29,7 @@ interface ChatItem {
 
 export default function Sidebar() {
   const [chats, setChats] = useState<ChatItem[]>([]);
+  const [chatsLoading, setChatsLoading] = useState(true);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserSummary[]>([]);
@@ -39,6 +41,7 @@ export default function Sidebar() {
       apiFetch('/api/conversations'),
       apiFetch('/api/groupchats'),
     ]);
+    setChatsLoading(false);
 
     const dmItems: ChatItem[] = conversations.map((c: any) => ({
       id: c.id,
@@ -139,13 +142,13 @@ export default function Sidebar() {
     prevChats.map((c) => (c.id === chatId ? { ...c, unread: false } : c))
   );
 
-  const endpoint = isDm
-    ? `/api/conversations/${chatId}/read`
-    : `/api/groupchats/${chatId}/read`;
+  // const endpoint = isDm
+  //   ? `/api/conversations/${chatId}/read`
+  //   : `/api/groupchats/${chatId}/read`;
 
-  apiFetch(endpoint, { method: 'POST' }).catch((err) => {
-    console.error('Failed to mark chat as read:', err);
-  });
+  // apiFetch(endpoint, { method: 'POST' }).catch((err) => {
+  //   console.error('Failed to mark chat as read:', err);
+  // });
 }, [pathname]);
 
   async function handleLogout() {
@@ -204,6 +207,8 @@ export default function Sidebar() {
           ) : (
             <p className="text-center text-sm text-[#6C7883] mt-6">No users found</p>
           )
+        ) : chatsLoading ? (
+          <ChatListSkeleton />
         ) : chats.length === 0 ? (
           <p className="text-center text-sm text-[#6C7883] mt-6">
             No chats yet — search for someone or create a group
