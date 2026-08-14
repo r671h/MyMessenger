@@ -1,25 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getApiUrl } from '@/src/lib/api';
+import { apiFetch } from '../src/lib/api';
 
 export default function Home() {
-  const [status,setStatus] = useState<string>('checking...');
   const router = useRouter();
 
   useEffect(() => {
-    router.push('/register');
-    fetch(`${getApiUrl()}/api/health`)
-      .then((res) =>res.json())
-      .then((data: { status: string }) => setStatus(data.status))
-      .catch(() => setStatus('Server not reachable'));
-    router.push('/register');
-  }, []);
+    apiFetch('/api/auth/me')
+      .then(() => router.replace('/messages'))
+      .catch(() => router.replace('/login'));
+  }, [router]);
 
-  return(
-    <main className="flex min-h-hscreen flex-col items-center justify-center">
-      <h1 className="text-2xl">Backend status: {status}</h1>
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#0E1621]">
+      <div className="w-8 h-8 border-2 border-[#3390EC] border-t-transparent rounded-full animate-spin" />
     </main>
-  )
+  );
 }
