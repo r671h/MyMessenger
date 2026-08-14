@@ -8,6 +8,7 @@ import Avatar from './Avatar';
 import ReactionBar from './ReactionBar';
 import MessageActionSheet from './MessageActionSheet';
 import type { ChatMessage } from '../types/chat';
+import { linkify } from '../lib/linkify';
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -171,7 +172,7 @@ export default function MessageBubble({
           ) : (
             <>
               <AttachmentView msg={msg} />
-              {msg.content && <p className="wrap-break-words">{msg.content}</p>}
+              {msg.content && <p className="wrap-break-words">{linkify(msg.content)}</p>}
             </>
           )}
 
