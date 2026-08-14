@@ -74,7 +74,11 @@ export default function NewGroupPage() {
     <main className="flex-1 flex flex-col bg-[#0E1621] text-[#E9EDF0] overflow-y-auto">
       <header className="flex items-center justify-between px-6 py-4 border-b border-black/30">
         <h1 className="text-lg font-semibold">New Group</h1>
-        <button onClick={() => router.push('/messages')} className="text-[#6C7883] hover:text-white">
+        <button
+          onClick={() => router.push('/messages')}
+          className="w-8 h-8 rounded-full flex items-center justify-center text-[#6C7883] hover:text-white hover:bg-white/10 transition-colors"
+          aria-label="Close"
+        >
           <X size={20} />
         </button>
       </header>

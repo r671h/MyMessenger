@@ -6,6 +6,7 @@ import { colorForName } from '../lib/avatarColors';
 import AttachmentView from './AttachmentView';
 import Avatar from './Avatar';
 import ReactionBar from './ReactionBar';
+import MessageActionSheet from './MessageActionSheet';
 import type { ChatMessage } from '../types/chat';
 
 function formatTime(iso: string) {
@@ -14,6 +15,7 @@ function formatTime(iso: string) {
 
 const SWIPE_TRIGGER_DISTANCE = 60;
 const SWIPE_MAX_DISTANCE = 80;
+const LONG_PRESS_MS = 450;
 
 interface MessageBubbleProps {
   msg: ChatMessage;
@@ -36,9 +38,13 @@ export default function MessageBubble({
   const [editValue, setEditValue] = useState(msg.content || '');
   const [dragX, setDragX] = useState(0);
   const [swiping, setSwiping] = useState(false);
+  const [sheetAnchor, setSheetAnchor] = useState<{ x: number; y: number } | null>(null);
+
+
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const swipeLocked = useRef<'horizontal' | 'vertical' | null>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   const isDeleted = !!msg.deletedAt;
 
@@ -49,13 +55,18 @@ export default function MessageBubble({
     setIsEditing(false);
   }
 
-  // --- Swipe-to-reply (mobile touch gesture) ---
   function handleTouchStart(e: React.TouchEvent) {
     if (isDeleted) return;
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
+    const touch = e.touches[0];
+    touchStartX.current = touch.clientX;
+    touchStartY.current = touch.clientY;
     swipeLocked.current = null;
     setSwiping(true);
+
+    longPressTimer.current = setTimeout(() => {
+      setSheetAnchor({ x: touch.clientX, y: touch.clientY });
+      setDragX(0);
+    }, LONG_PRESS_MS);
   }
 
   function handleTouchMove(e: React.TouchEvent) {
@@ -63,21 +74,21 @@ export default function MessageBubble({
     const deltaX = e.touches[0].clientX - touchStartX.current;
     const deltaY = e.touches[0].clientY - touchStartY.current;
 
-    // Decide once whether this gesture is a horizontal swipe or a vertical scroll,
-    // based on whichever direction has moved further first. This stops the reply
-    // gesture from hijacking normal up/down scrolling through the message list.
     if (swipeLocked.current === null && (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6)) {
       swipeLocked.current = Math.abs(deltaX) > Math.abs(deltaY) ? 'horizontal' : 'vertical';
+      // Any real movement cancels the long-press — it's a scroll or a swipe, not a hold
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
     }
 
     if (swipeLocked.current === 'horizontal') {
-      e.preventDefault(); // stop the page from scrolling while actively swiping a message
+      e.preventDefault();
       const clamped = Math.max(0, Math.min(deltaX, SWIPE_MAX_DISTANCE));
       setDragX(clamped);
     }
   }
 
   function handleTouchEnd() {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
     if (dragX >= SWIPE_TRIGGER_DISTANCE) {
       onReply?.(msg);
     }
@@ -115,7 +126,7 @@ export default function MessageBubble({
       )}
 
       <div className="relative max-w-[65%]">
-        <div className={`px-3 py-2 rounded-2xl text-sm leading-snug ${isOwn ? 'bg-[#2B5278] rounded-br-md' : 'bg-[#182533] rounded-bl-md'}`}>
+        <div className={`px-3 py-2 rounded-2xl text-sm leading-snug select-none md:select-text ${isOwn ? 'bg-[#2B5278] rounded-br-md' : 'bg-[#182533] rounded-bl-md'}`}>
           {!isOwn && showAvatarAndName && (
             <p className="text-xs font-medium mb-0.5" style={{ color: colorForName(msg.sender.username) }}>
               {msg.sender.username}
@@ -181,37 +192,51 @@ export default function MessageBubble({
           )}
         </div>
 
-        {/* Top-right corner controls: reply always available, edit/delete only for your own messages */}
+        {/* Desktop-only hover controls — mobile relies on swipe + long-press instead */}
         {!isDeleted && !isEditing && (
-          <div className="absolute bottom-0 right-1 flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+          <div className="hidden md:flex absolute -bottom-5 right-0 items-center gap-0.5 bg-[#242F3D] rounded-full px-1 py-1 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={() => onReply?.(msg)}
-              className="w-6 h-6 rounded-full bg-[#242F3D] shadow-md flex items-center justify-center text-[#6C7883] hover:text-white"
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[#8FA3AD] hover:text-white hover:bg-white/10 transition-colors"
               aria-label="Reply"
             >
-              <Reply size={12} />
+              <Reply size={13} />
             </button>
             {isOwn && (
               <>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="w-6 h-6 rounded-full bg-[#242F3D] shadow-md flex items-center justify-center text-[#6C7883] hover:text-white"
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[#8FA3AD] hover:text-white hover:bg-white/10 transition-colors"
                   aria-label="Edit message"
                 >
-                  <Pencil size={12} />
+                  <Pencil size={13} />
                 </button>
                 <button
                   onClick={() => onDelete?.(msg.id)}
-                  className="w-6 h-6 rounded-full bg-[#242F3D] shadow-md flex items-center justify-center text-[#6C7883] hover:text-red-400"
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[#8FA3AD] hover:text-red-400 hover:bg-white/10 transition-colors"
                   aria-label="Delete message"
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={13} />
                 </button>
               </>
             )}
           </div>
         )}
       </div>
+
+      {sheetAnchor && (
+        <MessageActionSheet
+          isOwn={isOwn}
+          hasText={!!msg.content}
+          onClose={() => setSheetAnchor(null)}
+          onReact={(emoji) => onReact?.(msg.id, emoji)}
+          onReply={() => onReply?.(msg)}
+          onEdit={isOwn ? () => setIsEditing(true) : undefined}
+          onDelete={isOwn ? () => onDelete?.(msg.id) : undefined}
+          onCopy={msg.content ? () => navigator.clipboard.writeText(msg.content!) : undefined}
+          anchor={sheetAnchor}
+        />
+      )}
     </div>
   );
 }

@@ -33,6 +33,7 @@ export default function Sidebar() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserSummary[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -107,15 +108,24 @@ export default function Sidebar() {
   }, []);
 
   useEffect(() => {
+    loadChats();
+  }, [pathname]);
+
+  useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
+      setIsSearching(false);
       return;
     }
+
+    setIsSearching(true);
     const timeout = setTimeout(() => {
       apiFetch(`/api/users/search/${encodeURIComponent(searchQuery)}`)
         .then(setSearchResults)
-        .catch(() => setSearchResults([]));
-    }, 300);
+        .catch(() => setSearchResults([]))
+        .finally(() => setIsSearching(false));
+    }, 100);
+
     return () => clearTimeout(timeout);
   }, [searchQuery]);
 
@@ -190,7 +200,9 @@ export default function Sidebar() {
 
       <div className="flex-1 overflow-y-auto">
         {searchQuery.trim() ? (
-          searchResults.length > 0 ? (
+          isSearching ? (
+            <p className="text-center text-sm text-[#6C7883] mt-6">Searching...</p>
+          ) : searchResults.length > 0 ? (
             searchResults.map((user) => (
               <button
                 key={user.id}
