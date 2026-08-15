@@ -121,7 +121,7 @@ export default function MessageBubble({
       )}
 
       {!isOwn && (
-        <div className="w-9 shrink-0">
+        <div>
           {showAvatarAndName && <Avatar name={msg.sender.username} avatarUrl={msg.sender.avatarUrl} size={36} />}
         </div>
       )}

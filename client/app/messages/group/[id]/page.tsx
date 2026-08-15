@@ -190,9 +190,14 @@ export default function GroupChatPage() {
             </button>
             {menuOpen && (
               <div className="absolute right-0 top-full mt-1 bg-[#242F3D] rounded-lg shadow-lg py-1 w-56 z-10">
-                {group.participants.map((p) => (
+                {group?.participants.map((p) => (
                   <div key={p.user.id} className="flex items-center justify-between px-3 py-1.5 text-sm">
-                    <span className="truncate">{p.user.username}</span>
+                    <button
+                      onClick={() => { router.push(`/users/${p.user.id}`); setMenuOpen(false); }}
+                      className="truncate hover:text-[#3390EC] text-left cursor-pointer"
+                    >
+                      {p.user.username}
+                    </button>
                     {group.createdById === currentUser?.id && p.user.id !== currentUser?.id && (
                       <button onClick={() => handleRemoveMember(p.user.id)} className="text-[#6C7883] hover:text-red-400">
                         <UserMinus size={14} />

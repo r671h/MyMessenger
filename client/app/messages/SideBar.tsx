@@ -204,19 +204,20 @@ export default function Sidebar() {
             <p className="text-center text-sm text-[#6C7883] mt-6">Searching...</p>
           ) : searchResults.length > 0 ? (
             searchResults.map((user) => (
-              <button
-                key={user.id}
-                onClick={() => startConversation(user.id)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#182533] transition-colors text-left"
-              >
+            <div
+              key={user.id}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#182533] transition-colors"
+            >
+              <button onClick={() => router.push(`/users/${user.id}`)} className='cursor-pointer'>
                 <Avatar name={user.username} avatarUrl={user.avatarUrl} online={onlineUsers.has(user.id)} size={44} />
-                <div className="min-w-0">
-                  <p className="font-medium text-white truncate">{user.username}</p>
-                  {user.bio && <p className="text-xs text-[#6C7883] truncate">{user.bio}</p>}
-                </div>
               </button>
-            ))
-          ) : (
+              <button onClick={() => startConversation(user.id)} className="min-w-0 flex-1 text-left">
+                <p className="font-medium text-white truncate">{user.username}</p>
+                {user.bio && <p className="text-xs text-[#6C7883] truncate">{user.bio}</p>}
+              </button>
+            </div>
+          )))
+           : (
             <p className="text-center text-sm text-[#6C7883] mt-6">No users found</p>
           )
         ) : chatsLoading ? (

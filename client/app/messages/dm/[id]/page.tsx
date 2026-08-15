@@ -144,13 +144,20 @@ export default function DMPage() {
           <button onClick={() => router.push('/messages')} className="md:hidden text-[#6C7883] hover:text-white shrink-0">
             <ArrowLeft size={20} />
           </button>
-          <Avatar name={otherUser.username} avatarUrl={otherUser.avatarUrl} size={36} />
-          <div className="flex-1">
-            <p className="font-medium">{otherUser.username}</p>
-            <p className="text-xs text-[#6C7883]">
-              {onlineUsers.has(otherUser.id) ? 'online' : 'offline'}
-            </p>
-          </div>
+          <button
+            onClick={() => router.push(`/users/${otherUser?.id}`)}
+            className="flex items-center gap-3 flex-1 text-left cursor-pointer"
+          >
+            {otherUser && <Avatar name={otherUser.username} avatarUrl={otherUser.avatarUrl} size={36} />}
+            <div>
+              <p className="font-medium">{otherUser?.username || 'Loading...'}</p>
+              {otherUser && (
+                <p className="text-xs text-[#6C7883]">
+                  {onlineUsers.has(otherUser.id) ? 'online' : 'offline'}
+                </p>
+              )}
+            </div>
+          </button>
           <div className="relative">
             <button onClick={() => setMenuOpen((v) => !v)} className="text-[#6C7883] hover:text-white p-1">
               <MoreVertical size={18} />
