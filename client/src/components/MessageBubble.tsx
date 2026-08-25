@@ -1,14 +1,14 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { Pencil, Trash2, Check, X, Reply } from 'lucide-react';
 import { colorForName } from '../lib/avatarColors';
-import { linkify } from '../lib/linkify';
 import AttachmentView from './AttachmentView';
 import Avatar from './Avatar';
 import ReactionBar from './ReactionBar';
 import MessageActionSheet from './MessageActionSheet';
 import type { ChatMessage } from '../types/chat';
+import { linkify } from '../lib/linkify';
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -21,9 +21,7 @@ const LONG_PRESS_MS = 450;
 interface MessageBubbleProps {
   msg: ChatMessage;
   isOwn: boolean;
-  showSenderName: boolean;
-  showAvatar: boolean;
-  showAvatarColumn?: boolean;
+  showAvatarAndName: boolean;
   receipt?: React.ReactNode;
   currentUserId?: string;
   onEdit?: (messageId: string, newContent: string) => void;
@@ -34,14 +32,15 @@ interface MessageBubbleProps {
 }
 
 export default function MessageBubble({
-  msg, isOwn, showSenderName, showAvatar, showAvatarColumn = true, receipt, currentUserId,
+  msg, isOwn, showAvatarAndName, receipt, currentUserId,
   onEdit, onDelete, onReact, onReply, onQuoteClick,
 }: MessageBubbleProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(msg.content || '');
   const [dragX, setDragX] = useState(0);
   const [swiping, setSwiping] = useState(false);
-  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [sheetAnchor, setSheetAnchor] = useState<{ x: number; y: number } | null>(null);
+
 
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -57,12 +56,6 @@ export default function MessageBubble({
     setIsEditing(false);
   }
 
-  function handleContextMenu(e: React.MouseEvent) {
-    if (isDeleted) return;
-    e.preventDefault(); // suppress the browser's native right-click menu
-    setMenuAnchor({ x: e.clientX, y: e.clientY });
-  }
-
   function handleTouchStart(e: React.TouchEvent) {
     if (isDeleted) return;
     const touch = e.touches[0];
@@ -72,7 +65,7 @@ export default function MessageBubble({
     setSwiping(true);
 
     longPressTimer.current = setTimeout(() => {
-      setMenuAnchor({ x: touch.clientX, y: touch.clientY });
+      setSheetAnchor({ x: touch.clientX, y: touch.clientY });
       setDragX(0);
     }, LONG_PRESS_MS);
   }
@@ -84,6 +77,7 @@ export default function MessageBubble({
 
     if (swipeLocked.current === null && (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6)) {
       swipeLocked.current = Math.abs(deltaX) > Math.abs(deltaY) ? 'horizontal' : 'vertical';
+      // Any real movement cancels the long-press — it's a scroll or a swipe, not a hold
       if (longPressTimer.current) clearTimeout(longPressTimer.current);
     }
 
@@ -108,11 +102,10 @@ export default function MessageBubble({
 
   return (
     <div
-      className={`flex gap-2 ${isOwn ? 'justify-end' : 'justify-start'} ${showSenderName ? 'mt-2' : 'mt-0.5'} relative`}
+      className={`group flex gap-2 ${isOwn ? 'justify-end' : 'justify-start'} ${showAvatarAndName ? 'mt-2' : 'mt-0.5'} relative`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      onContextMenu={handleContextMenu}
       style={{
         transform: `translateX(${dragX}px)`,
         transition: swiping ? 'none' : 'transform 0.2s ease-out',
@@ -123,19 +116,19 @@ export default function MessageBubble({
           className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full flex items-center justify-center text-[#3390EC]"
           style={{ opacity: Math.min(dragX / SWIPE_TRIGGER_DISTANCE, 1) }}
         >
-          ↩
+          <Reply size={18} />
         </div>
       )}
 
-      {!isOwn && showAvatarColumn && (
-        <div className="w-9 shrink-0 self-end">
-          {showAvatar && <Avatar name={msg.sender.username} avatarUrl={msg.sender.avatarUrl} size={36} />}
+      {!isOwn && (
+        <div>
+          {showAvatarAndName && <Avatar name={msg.sender.username} avatarUrl={msg.sender.avatarUrl} size={36} />}
         </div>
       )}
 
-      <div className="max-w-[65%] cursor-pointer select-none md:select-text">
-        <div className={`px-3 py-2 rounded-2xl text-sm leading-snug ${isOwn ? 'bg-[#2B5278] rounded-br-md' : 'bg-[#182533] rounded-bl-md'}`}>
-          {!isOwn && showSenderName && (
+      <div className="relative max-w-[65%]">
+        <div className={`px-3 py-2 rounded-2xl text-sm leading-snug select-none md:select-text ${isOwn ? 'bg-[#2B5278] rounded-br-md' : 'bg-[#182533] rounded-bl-md'}`}>
+          {!isOwn && showAvatarAndName && (
             <p className="text-xs font-medium mb-0.5" style={{ color: colorForName(msg.sender.username) }}>
               {msg.sender.username}
             </p>
@@ -156,7 +149,7 @@ export default function MessageBubble({
           {isDeleted ? (
             <p className="italic text-[#8FA3AD]">This message was deleted</p>
           ) : isEditing ? (
-            <div className="flex flex-col gap-1.5 min-w-[180px]">
+            <div className="flex flex-col gap-1.5 min-w-45">
               <input
                 autoFocus
                 className="bg-black/20 rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-[#3390EC]"
@@ -179,7 +172,7 @@ export default function MessageBubble({
           ) : (
             <>
               <AttachmentView msg={msg} />
-              {msg.content && <p className="break-words">{linkify(msg.content)}</p>}
+              {msg.content && <p className="wrap-break-words">{linkify(msg.content)}</p>}
             </>
           )}
 
@@ -190,28 +183,59 @@ export default function MessageBubble({
               {!isDeleted && receipt}
             </p>
           )}
+
+          {!isEditing && !isDeleted && currentUserId && onReact && (
+            <ReactionBar
+              reactions={msg.reactions || []}
+              currentUserId={currentUserId}
+              onReact={(emoji) => onReact(msg.id, emoji)}
+            />
+          )}
         </div>
 
-        {!isDeleted && currentUserId && onReact && (
-          <ReactionBar
-            reactions={msg.reactions || []}
-            currentUserId={currentUserId}
-            onReact={(emoji) => onReact(msg.id, emoji)}
-          />
+        {/* Desktop-only hover controls — mobile relies on swipe + long-press instead */}
+        {!isDeleted && !isEditing && (
+          <div className="hidden md:flex absolute -bottom-5 right-0 items-center gap-0.5 bg-[#242F3D] rounded-full px-1 py-1 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => onReply?.(msg)}
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[#8FA3AD] hover:text-white hover:bg-white/10 transition-colors"
+              aria-label="Reply"
+            >
+              <Reply size={13} />
+            </button>
+            {isOwn && (
+              <>
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[#8FA3AD] hover:text-white hover:bg-white/10 transition-colors"
+                  aria-label="Edit message"
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  onClick={() => onDelete?.(msg.id)}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[#8FA3AD] hover:text-red-400 hover:bg-white/10 transition-colors"
+                  aria-label="Delete message"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
 
-      {menuAnchor && (
+      {sheetAnchor && (
         <MessageActionSheet
           isOwn={isOwn}
           hasText={!!msg.content}
-          anchor={menuAnchor}
-          onClose={() => setMenuAnchor(null)}
+          onClose={() => setSheetAnchor(null)}
           onReact={(emoji) => onReact?.(msg.id, emoji)}
           onReply={() => onReply?.(msg)}
           onEdit={isOwn ? () => setIsEditing(true) : undefined}
           onDelete={isOwn ? () => onDelete?.(msg.id) : undefined}
           onCopy={msg.content ? () => navigator.clipboard.writeText(msg.content!) : undefined}
+          anchor={sheetAnchor}
         />
       )}
     </div>

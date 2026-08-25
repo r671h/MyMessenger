@@ -6,8 +6,6 @@ import { Reply, Pencil, Trash2, Copy } from 'lucide-react';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 const MENU_WIDTH = 200;
-const REACTION_ROW_HEIGHT = 42;
-const MENU_ESTIMATED_HEIGHT = 180; // rough max height of the action list below
 
 interface MessageActionSheetProps {
   isOwn: boolean;
@@ -25,39 +23,35 @@ export default function MessageActionSheet({
   isOwn, hasText, anchor, onClose, onReact, onReply, onEdit, onDelete, onCopy,
 }: MessageActionSheetProps) {
   const [mounted, setMounted] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => setMounted(true), []);
-  if (!mounted || !anchor) return null;
+  if (!mounted) return null;
 
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  const left = Math.min(Math.max(anchor.x - MENU_WIDTH / 2, 12), vw - MENU_WIDTH - 12);
+  // Clamp horizontally so the menu never runs off either edge
+  const left = Math.min(Math.max(anchor!.x - MENU_WIDTH / 2, 12), vw - MENU_WIDTH - 12);
 
-  // Does the menu + reaction row fit below the tap point? If not, flip above.
-  const spaceBelow = vh - anchor.y;
-  const neededBelow = REACTION_ROW_HEIGHT + 8 + MENU_ESTIMATED_HEIGHT;
-  const showBelow = spaceBelow > neededBelow;
-
-  let reactionTop: number;
-  let menuTop: number;
-
-  if (showBelow) {
-    reactionTop = anchor.y + 8;
-    menuTop = reactionTop + REACTION_ROW_HEIGHT + 8;
-  } else {
-    // Stack upward from the tap point, then clamp so nothing goes above the viewport
-    menuTop = Math.max(anchor.y - 14 - MENU_ESTIMATED_HEIGHT, 12);
-    reactionTop = Math.max(menuTop - REACTION_ROW_HEIGHT - 8, 12);
-  }
+  // Prefer showing below the tap point; flip above if there's not enough room below
+  const showBelow = anchor!.y < vh * 0.65;
+  const verticalStyle = showBelow
+    ? { top: anchor!.y + 14 }
+    : { bottom: vh - anchor!.y + 14 };
 
   return createPortal(
     <div className="fixed inset-0 z-50" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
 
+      {/* Quick reaction row, floating just above the menu */}
       <div
         className="absolute flex gap-1 bg-[#242F3D] rounded-full px-2 py-1.5 shadow-xl"
-        style={{ left, width: MENU_WIDTH, top: reactionTop }}
+        style={{
+          left,
+          width: MENU_WIDTH,
+          ...(showBelow ? { top: anchor!.y - 42 } : { bottom: vh - anchor!.y + 56 }),
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {QUICK_EMOJIS.map((emoji) => (
@@ -72,8 +66,9 @@ export default function MessageActionSheet({
       </div>
 
       <div
+        ref={menuRef}
         className="absolute bg-[#242F3D] rounded-xl shadow-xl overflow-hidden"
-        style={{ left, width: MENU_WIDTH, top: menuTop }}
+        style={{ left, width: MENU_WIDTH, ...verticalStyle }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -104,7 +99,7 @@ export default function MessageActionSheet({
             className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-red-400 active:bg-black/20"
           >
             <Trash2 size={16} /> Delete
-          </button> 
+          </button>
         )}
       </div>
     </div>,
