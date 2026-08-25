@@ -230,22 +230,20 @@ export default function GroupChatPage() {
       {!messagesLoaded ? (
         <ChatThreadSkeleton />
       ) : (
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 flex flex-col gap-1">
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col justify-end gap-1">
         {messages.map((msg, i) => {
           const isOwn = msg.sender.id === currentUser?.id;
           const prev = messages[i - 1];
-          const next = messages[i + 1];
-          const showSenderName = !prev || prev.sender.id !== msg.sender.id;
-          const showAvatar = !next || next.sender.id !== msg.sender.id;
+          const showAvatarAndName = !prev || prev.sender.id !== msg.sender.id;
           const seenCount = isOwn ? getSeenCount(msg.createdAt, msg.sender.id) : 0;
 
           return (
             <div key={msg.id} id={`msg-${msg.id}`}>
               <MessageBubble
+                key={msg.id}
                 msg={msg}
                 isOwn={isOwn}
-                showSenderName={showSenderName}
-                showAvatar={showAvatar}
+                showAvatarAndName={showAvatarAndName}
                 receipt={isOwn ? <span>· {seenCount > 0 ? `Seen by ${seenCount}` : 'Sent'}</span> : undefined}
                 currentUserId={currentUser?.id}
                 onEdit={handleEdit}
