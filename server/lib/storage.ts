@@ -9,7 +9,7 @@ cloudinary.config({
 export async function uploadToStorage(buffer: Buffer, folder: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
-      { folder, resource_type: 'auto' }, // 'auto' handles images, PDFs, zips, etc.
+      { folder, resource_type: 'auto' }, // 'auto' handles images, PDFs, zips, etc
       (error, result) => {
         if (error || !result) return reject(error);
         resolve(result.secure_url);
