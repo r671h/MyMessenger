@@ -1,10 +1,9 @@
 export interface User {
-    id:string;
-    username: string;
-    email: string;
-    password: string;
-    bio?: string | null;
-    avatarUrl?: string | null;
+  id: string;
+  username: string;
+  email?: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface Attachment {
@@ -18,6 +17,29 @@ export interface Reaction {
   id: string;
   emoji: string;
   userId: string;
+}
+
+export interface MessagePreview {
+  content: string | null;
+  createdAt: string;
+  senderId?: string;
+}
+
+export interface ConversationSummary {
+  id: string;
+  otherUser: User;
+  lastMessage: MessagePreview | null;
+  unread: boolean;
+}
+
+export interface GroupSummary {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  memberCount: number;
+  lastMessage: MessagePreview | null;
+  unread: boolean;
+  lastActivity: string;
 }
 
 export interface ChatMessage {

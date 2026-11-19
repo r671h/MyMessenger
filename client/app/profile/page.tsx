@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiFetch, apiUpload, getApiUrl } from '@/src/lib/api';
+import { apiFetch, apiUpload } from '@/src/lib/api';
 import ProfileSkeleton from '@/src/components/skeletons/ProfileSkeleton';
 
 interface User {

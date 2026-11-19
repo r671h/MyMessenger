@@ -1,5 +1,4 @@
-import { useState, useRef } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
+import { useRef } from 'react';
 
 interface VideoPlayerProps {
     src: string,
