@@ -1,6 +1,5 @@
 // HTTP-level tests that don't need a database: routing, auth guard, CORS and error handling.
-process.env.JWT_SECRET ||= 'test-secret-for-node-test-runner';
-
+import './setup';
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
