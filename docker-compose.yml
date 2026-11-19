@@ -1,18 +1,43 @@
+# Full local stack: PostgreSQL + API (Express/Socket.IO) + web client (Next.js).
+#   cp .env.example .env && docker compose up --build
+# Then open http://localhost:3000
 services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: messenger
+      POSTGRES_PASSWORD: messenger
+      POSTGRES_DB: messenger
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U messenger -d messenger"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   server:
     build:
       context: ./server
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
-      PORT: 9000
-      DATABASE_URL: ${DATABASE_URL}
-      JWT_SECRET: ${JWT_SECRET}
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL:-postgresql://messenger:messenger@db:5432/messenger}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (see .env.example)}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
-      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000}
+      # Optional: without Cloudinary credentials uploads are stored in the "uploads" volume.
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+    volumes:
+      - uploads:/app/uploads
     ports:
-      - "9000:4000"
+      - "4000:4000"
 
   client:
     build:
@@ -24,3 +49,7 @@ services:
       - server
     ports:
       - "3000:3000"
+
+volumes:
+  db-data:
+  uploads:
