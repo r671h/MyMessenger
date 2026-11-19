@@ -1,0 +1,17 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Container registries for social-media (deploy before app.yaml)
+Resources:
+  ServerRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: social-media-server
+      ImageTagMutability: IMMUTABLE
+      ImageScanningConfiguration: {ScanOnPush: true}
+      EncryptionConfiguration: {EncryptionType: AES256}
+  ClientRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: social-media-client
+      ImageTagMutability: IMMUTABLE
+      ImageScanningConfiguration: {ScanOnPush: true}
+      EncryptionConfiguration: {EncryptionType: AES256}
