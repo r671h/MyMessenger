@@ -23,8 +23,13 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY docker-entrypoint.cjs ./docker-entrypoint.cjs
+
+# Run as the unprivileged "node" user; uploads/ is the local-storage fallback (mount a volume here).
+RUN mkdir -p uploads && chown node:node uploads
+USER node
 
 EXPOSE 4000
 
 # apply pending migrations, then start the API/socket server
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+CMD ["node", "docker-entrypoint.cjs"]
