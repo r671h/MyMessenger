@@ -2,7 +2,7 @@
 
 A real-time messenger with direct and group chats, built with **Next.js**, **Express**, **Socket.IO**, **Prisma** and **PostgreSQL**.
 
-[![CI](https://github.com/r671h/MyMessanger/actions/workflows/ci.yml/badge.svg)](https://github.com/r671h/MyMessanger/actions/workflows/ci.yml)
+[![CI](https://github.com/r671h/MyMessenger/actions/workflows/ci.yml/badge.svg)](https://github.com/r671h/MyMessenger/actions/workflows/ci.yml)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
