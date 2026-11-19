@@ -2,15 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { io, Socket } from 'socket.io-client';
-import { apiFetch, getApiUrl, getToken } from '../../../../src/lib/api';
+import type { Socket } from 'socket.io-client';
+import { apiFetch } from '../../../../src/lib/api';
+import { connectSocket, TYPING_INDICATOR_TTL_MS, type TypingUpdate } from '../../../../src/lib/socket';
 import { requestChatListRefresh } from '../../../../src/lib/chatListRefresh';
 import Avatar from '../../../../src/components/Avatar';
 import MessageBubble from '../../../../src/components/MessageBubble';
 import TypingDots from '../../../../src/components/TypingDots';
 import ChatInput from '../../../../src/components/ChatInput';
 import ChatThreadSkeleton, { ChatHeaderSkeleton } from '../../../../src/components/skeletons/ChatThreadSkeleton';
-import type { User, ChatMessage, Attachment } from '../../../../src/types/chat';
+import type { User, ChatMessage, Attachment, Reaction } from '../../../../src/types/chat';
 import { ArrowLeft, MoreVertical, Trash2, LogOut, UserMinus } from 'lucide-react';
 interface GroupInfo {
   id: string;
@@ -37,22 +38,36 @@ export default function GroupChatPage() {
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
 
   useEffect(() => {
+    const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    const clearTyping = (userId: string) => {
+      clearTimeout(typingTimers.get(userId));
+      typingTimers.delete(userId);
+      setTypingUsers((prev) => {
+        if (!prev.has(userId)) return prev;
+        const next = new Map(prev);
+        next.delete(userId);
+        return next;
+      });
+    };
+
     apiFetch('/api/auth/me')
       .then(setCurrentUser)
       .catch(() => router.push('/login'));
 
-    apiFetch(`/api/groupchats/${groupId}`).then(setGroup);
-    apiFetch(`/api/groupchats/${groupId}/messages`).then((data) => {
-      setMessages(data);
-      setMessagesLoaded(true);
-    });
-    apiFetch(`/api/groupchats/${groupId}/read-status`).then(
-      (data: { userId: string; lastReadAt: string }[]) => {
+    apiFetch(`/api/groupchats/${groupId}`)
+      .then(setGroup)
+      .catch(() => router.push('/messages'));
+    apiFetch(`/api/groupchats/${groupId}/messages`)
+      .then(setMessages)
+      .catch(() => setMessages([]))
+      .finally(() => setMessagesLoaded(true));
+    apiFetch(`/api/groupchats/${groupId}/read-status`)
+      .then((data: { userId: string; lastReadAt: string }[]) => {
         setReadStatus(new Map(data.map((r) => [r.userId, r.lastReadAt])));
-      }
-    );
+      })
+      .catch(() => {});
 
-    const socket = io(getApiUrl(), { withCredentials: true,auth: {token: getToken()} });
+    const socket = connectSocket();
     socketRef.current = socket;
 
     socket.emit('groupchat:read', groupId);
@@ -60,6 +75,7 @@ export default function GroupChatPage() {
     socket.on('groupchat:new', (message: ChatMessage & { groupChatId: string }) => {
       if (message.groupChatId !== groupId) return; // ignore messages for other groups
       setMessages((prev) => [...prev, message]);
+      clearTyping(message.sender.id);
       socket.emit('groupchat:read', groupId);
     });
 
@@ -69,20 +85,20 @@ export default function GroupChatPage() {
       }
     });
 
-    socket.on('typing:update', ({ userId, username, typing }: { userId: string; username?: string; typing: boolean }) => {
-      setTypingUsers((prev) => {
-        const next = new Map(prev);
-        if (typing && username) next.set(userId, username);
-        else next.delete(userId);
-        return next;
-      });
+    socket.on('typing:update', ({ chatType, chatId, userId, username, typing }: TypingUpdate) => {
+      if (chatType !== 'group' || chatId !== groupId) return;
+      if (!typing) return clearTyping(userId);
+
+      setTypingUsers((prev) => new Map(prev).set(userId, username || 'Someone'));
+      clearTimeout(typingTimers.get(userId));
+      typingTimers.set(userId, setTimeout(() => clearTyping(userId), TYPING_INDICATOR_TTL_MS));
     });
 
     socket.on('groupchat:updated', (updatedMessage: ChatMessage) => {
       setMessages((prev) => prev.map((m) => (m.id === updatedMessage.id ? updatedMessage : m)));
     });
 
-    socket.on('groupchat:reactions-updated', ({ messageId, reactions }: { messageId: string; reactions: any[] }) => {
+    socket.on('groupchat:reactions-updated', ({ messageId, reactions }: { messageId: string; reactions: Reaction[] }) => {
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
     });
 
@@ -101,6 +117,7 @@ export default function GroupChatPage() {
     });
 
     return () => {
+      typingTimers.forEach(clearTimeout);
       socket.disconnect();
     };
   }, [groupId, router]);
@@ -153,17 +170,16 @@ export default function GroupChatPage() {
 
   async function handleDeleteGroup() {
     if (!confirm('Delete this group for everyone? This cannot be undone.')) return;
-    const memberIds = group?.participants.map((p) => p.user.id) || [];
+    // The server notifies all members in real time.
     await apiFetch(`/api/groupchats/${groupId}`, { method: 'DELETE' });
-    socketRef.current?.emit('groupchat:notify-deleted', { groupChatId: groupId, memberIds });
     requestChatListRefresh();
     router.push('/messages');
   }
 
   async function handleRemoveMember(userId: string) {
     if (!confirm('Remove this member from the group?')) return;
+    // The server notifies the removed member in real time.
     await apiFetch(`/api/groupchats/${groupId}/members/${userId}`, { method: 'DELETE' });
-    socketRef.current?.emit('groupchat:notify-removed', { groupChatId: groupId, removedUserId: userId });
     setGroup((prev) => prev && { ...prev, participants: prev.participants.filter((p) => p.user.id !== userId) });
     requestChatListRefresh();
   }
@@ -271,8 +287,8 @@ export default function GroupChatPage() {
 
       <ChatInput
         onSend={handleSend}
-        onTypingStart={() => socketRef.current?.emit('typing:start')}
-        onTypingStop={() => socketRef.current?.emit('typing:stop')}
+        onTypingStart={() => socketRef.current?.emit('typing:start', { chatType: 'group', chatId: groupId })}
+        onTypingStop={() => socketRef.current?.emit('typing:stop', { chatType: 'group', chatId: groupId })}
         replyTarget={replyTarget}
         onCancelReply={() => setReplyTarget(null)}
       />

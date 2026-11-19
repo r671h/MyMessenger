@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Reply, Pencil, Trash2, Copy } from 'lucide-react';
 
@@ -24,10 +23,8 @@ interface MessageActionSheetProps {
 export default function MessageActionSheet({
   isOwn, hasText, anchor, onClose, onReact, onReply, onEdit, onDelete, onCopy,
 }: MessageActionSheetProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
-  if (!mounted || !anchor) return null;
+  // The sheet only opens after a user gesture, so we're always in the browser when anchor is set.
+  if (!anchor || typeof document === 'undefined') return null;
 
   const vw = window.innerWidth;
   const vh = window.innerHeight;

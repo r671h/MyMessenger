@@ -2,15 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { io, Socket } from 'socket.io-client';
-import { apiFetch, getApiUrl, getToken } from '../../../../src/lib/api';
+import type { Socket } from 'socket.io-client';
+import { apiFetch } from '../../../../src/lib/api';
+import { connectSocket, TYPING_INDICATOR_TTL_MS, type TypingUpdate } from '../../../../src/lib/socket';
 import { requestChatListRefresh } from '../../../../src/lib/chatListRefresh';
 import Avatar from '../../../../src/components/Avatar';
 import MessageBubble from '../../../../src/components/MessageBubble';
 import TypingDots from '../../../../src/components/TypingDots';
 import ChatInput from '../../../../src/components/ChatInput';
 import ChatThreadSkeleton, { ChatHeaderSkeleton } from '../../../../src/components/skeletons/ChatThreadSkeleton';
-import type { User, ChatMessage, Attachment } from '../../../../src/types/chat';
+import type { User, ChatMessage, Attachment, Reaction } from '../../../../src/types/chat';
 import { ArrowLeft, MoreVertical, Trash2 } from 'lucide-react';
 
 export default function DMPage() {
@@ -32,39 +33,41 @@ export default function DMPage() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    let typingTimer: ReturnType<typeof setTimeout> | undefined;
+
     apiFetch('/api/auth/me')
       .then(setCurrentUser)
       .catch(() => router.push('/login'));
 
-    apiFetch('/api/conversations').then((convs) => {
-      const conv = convs.find((c: any) => c.id === conversationId);
-      if (conv) setOtherUser(conv.otherUser);
-    });
+    apiFetch(`/api/conversations/${conversationId}`)
+      .then((conv: { otherUser: User | null; otherLastReadAt: string | null }) => {
+        setOtherUser(conv.otherUser);
+        setOtherLastReadAt(conv.otherLastReadAt);
+      })
+      .catch(() => router.push('/messages'));
 
-    apiFetch(`/api/conversations/${conversationId}/messages`).then((data) => {
-      setMessages(data);
-      setMessagesLoaded(true);
-    });
+    apiFetch(`/api/conversations/${conversationId}/messages`)
+      .then(setMessages)
+      .catch(() => setMessages([]))
+      .finally(() => setMessagesLoaded(true));
 
-    apiFetch(`/api/conversations/${conversationId}/read-status`)
-      .then((data) => setOtherLastReadAt(data.otherLastReadAt))
-      .catch(() => {});
-
-    const socket = io(getApiUrl(), { withCredentials: true,auth: {token: getToken()} });
+    const socket = connectSocket();
     socketRef.current = socket;
 
-    socket.emit('conversation:join', conversationId);
     socket.emit('conversation:read', conversationId);
 
-    socket.on('dm:new', (message: ChatMessage) => {
+    socket.on('dm:new', (message: ChatMessage & { conversationId: string }) => {
+      if (message.conversationId !== conversationId) return; // the sidebar handles other chats
       setMessages((prev) => [...prev, message]);
+      setIsOtherTyping(false);
       socket.emit('conversation:read', conversationId);
     });
 
-    socket.on('typing:update', ({ userId, typing }: { userId: string; typing: boolean }) => {
-      if (userId === otherUser?.id || !otherUser) {
-        setIsOtherTyping(typing);
-      }
+    socket.on('typing:update', ({ chatType, chatId, typing }: TypingUpdate) => {
+      if (chatType !== 'dm' || chatId !== conversationId) return;
+      setIsOtherTyping(typing);
+      clearTimeout(typingTimer);
+      if (typing) typingTimer = setTimeout(() => setIsOtherTyping(false), TYPING_INDICATOR_TTL_MS);
     });
 
     socket.on('presence:list', (userIds: string[]) => setOnlineUsers(new Set(userIds)));
@@ -87,12 +90,12 @@ export default function DMPage() {
       setMessages((prev) => prev.map((m) => (m.id === updatedMessage.id ? updatedMessage : m)));
     });
 
-    socket.on('dm:reactions-updated', ({ messageId, reactions }: { messageId: string; reactions: any[] }) => {
+    socket.on('dm:reactions-updated', ({ messageId, reactions }: { messageId: string; reactions: Reaction[] }) => {
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
     });
 
     return () => {
-      socket.emit('conversation:leave', conversationId);
+      clearTimeout(typingTimer);
       socket.disconnect();
     };
   }, [conversationId, router]);
@@ -217,8 +220,8 @@ export default function DMPage() {
 
       <ChatInput
         onSend={handleSend}
-        onTypingStart={() => socketRef.current?.emit('typing:start')}
-        onTypingStop={() => socketRef.current?.emit('typing:stop')}
+        onTypingStart={() => socketRef.current?.emit('typing:start', { chatType: 'dm', chatId: conversationId })}
+        onTypingStop={() => socketRef.current?.emit('typing:stop', { chatType: 'dm', chatId: conversationId })}
         replyTarget={replyTarget}
         onCancelReply={() => setReplyTarget(null)}
       />

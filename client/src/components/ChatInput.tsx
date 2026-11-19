@@ -17,7 +17,8 @@ export default function ChatInput({ onSend, onTypingStart, onTypingStop, replyTa
   const [input, setInput] = useState('');
   const [pendingFile, setPendingFile] = useState<Attachment | null>(null);
   const [uploading, setUploading] = useState(false);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingEmitRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -28,9 +29,21 @@ export default function ChatInput({ onSend, onTypingStart, onTypingStop, replyTa
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     setInput(e.target.value);
-    onTypingStart?.();
+
+    // Throttle "typing" pings: one every 2.5s is enough to keep the remote indicator alive.
+    const now = Date.now();
+    if (now - lastTypingEmitRef.current > 2500) {
+      lastTypingEmitRef.current = now;
+      onTypingStart?.();
+    }
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => onTypingStop?.(), 1500);
+    typingTimeoutRef.current = setTimeout(stopTyping, 1500);
+  }
+
+  function stopTyping() {
+    if (lastTypingEmitRef.current === 0) return;
+    lastTypingEmitRef.current = 0;
+    onTypingStop?.();
   }
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -55,8 +68,8 @@ export default function ChatInput({ onSend, onTypingStart, onTypingStop, replyTa
     if (!input.trim() && !pendingFile) return;
     onSend(input.trim() || undefined, pendingFile, replyTarget?.id || null);
     onCancelReply?.();
-    onTypingStop?.();
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    stopTyping();
     setInput('');
     setPendingFile(null);
   }
@@ -103,6 +116,7 @@ export default function ChatInput({ onSend, onTypingStart, onTypingStop, replyTa
           ref={textInputRef}
           className="flex-1 bg-[#242F3D] text-[#E9EDF0] placeholder-[#6C7883] rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#3390EC]"
           value={input}
+          maxLength={4000}
           onChange={handleInputChange}
           placeholder={uploading ? 'Uploading...' : 'Message'}
         />
