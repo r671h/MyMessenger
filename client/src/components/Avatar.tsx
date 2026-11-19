@@ -1,6 +1,5 @@
 'use client';
 
-import { getApiUrl } from '../lib/api';
 import { colorForName } from '../lib/avatarColors';
 
 interface AvatarProps {

@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { io } from 'socket.io-client';
 import { Search, LogOut, Plus, UserCircle } from 'lucide-react';
-import { apiFetch, clearToken, getApiUrl, getToken } from '../../src/lib/api';
+import { apiFetch, clearToken } from '../../src/lib/api';
+import { connectSocket } from '../../src/lib/socket';
 import { onChatListRefreshRequested } from '../../src/lib/chatListRefresh';
 import Avatar from '../../src/components/Avatar';
 import ChatListSkeleton from '../../src/components/skeletons/ChatListSkeleton';
+import type { ConversationSummary, GroupSummary, MessagePreview } from '../../src/types/chat';
 
 interface UserSummary {
   id: string;
@@ -21,10 +22,45 @@ interface ChatItem {
   type: 'dm' | 'group';
   name: string;
   avatarUrl: string | null;
-  lastMessage: { content: string | null; createdAt: string } | null;
+  lastMessage: MessagePreview | null;
   unread: boolean;
   lastActivity: string;
   otherUserId?: string;
+}
+
+/** Loads DMs and groups and merges them into one list, most recent activity first. */
+async function fetchChats(): Promise<ChatItem[]> {
+  const [conversations, groups]: [ConversationSummary[], GroupSummary[]] = await Promise.all([
+    apiFetch('/api/conversations'),
+    apiFetch('/api/groupchats'),
+  ]);
+
+  const dmItems: ChatItem[] = conversations
+    .filter((c) => c.otherUser)
+    .map((c) => ({
+      id: c.id,
+      type: 'dm',
+      name: c.otherUser.username,
+      avatarUrl: c.otherUser.avatarUrl ?? null,
+      lastMessage: c.lastMessage,
+      unread: c.unread,
+      lastActivity: c.lastMessage?.createdAt || new Date(0).toISOString(),
+      otherUserId: c.otherUser.id,
+    }));
+
+  const groupItems: ChatItem[] = groups.map((g) => ({
+    id: g.id,
+    type: 'group',
+    name: g.name,
+    avatarUrl: g.avatarUrl,
+    lastMessage: g.lastMessage,
+    unread: g.unread,
+    lastActivity: g.lastActivity,
+  }));
+
+  return [...dmItems, ...groupItems].sort(
+    (a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
+  );
 }
 
 export default function Sidebar() {
@@ -37,45 +73,15 @@ export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
 
-  async function loadChats() {
-    const [conversations, groups] = await Promise.all([
-      apiFetch('/api/conversations'),
-      apiFetch('/api/groupchats'),
-    ]);
-    setChatsLoading(false);
-
-    const dmItems: ChatItem[] = conversations.map((c: any) => ({
-      id: c.id,
-      type: 'dm' as const,
-      name: c.otherUser.username,
-      avatarUrl: c.otherUser.avatarUrl,
-      lastMessage: c.lastMessage,
-      unread: c.unread,
-      lastActivity: c.lastMessage?.createdAt || new Date(0).toISOString(),
-      otherUserId: c.otherUser.id,
-    }));
-
-    const groupItems: ChatItem[] = groups.map((g: any) => ({
-      id: g.id,
-      type: 'group' as const,
-      name: g.name,
-      avatarUrl: g.avatarUrl,
-      lastMessage: g.lastMessage,
-      unread: g.unread,
-      lastActivity: g.lastActivity,
-    }));
-
-    const merged = [...dmItems, ...groupItems].sort(
-      (a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
-    );
-
-    setChats(merged);
-  }
+  const refreshChats = useCallback(() => {
+    fetchChats()
+      .then(setChats)
+      .catch((err) => console.error('Failed to load chats:', err))
+      .finally(() => setChatsLoading(false));
+  }, []);
 
   useEffect(() => {
-    loadChats();
-
-    const socket = io(`${getApiUrl()}`, { withCredentials: true,auth: {token: getToken()} });
+    const socket = connectSocket();
 
     socket.on('presence:list', (userIds: string[]) => setOnlineUsers(new Set(userIds)));
     socket.on('presence:update', ({ userId, online }: { userId: string; online: boolean }) => {
@@ -85,49 +91,51 @@ export default function Sidebar() {
         else next.delete(userId);
         return next;
       });
-      loadChats()
     });
 
-    socket.on('dm:new', () => loadChats());
-    socket.on('groupchat:new', () => loadChats());
+    // Any change that can affect ordering, previews or unread state triggers a refresh.
+    for (const event of [
+      'dm:new',
+      'dm:updated',
+      'groupchat:new',
+      'groupchat:updated',
+      'groupchat:removed',
+      'groupchat:deleted',
+    ]) {
+      socket.on(event, refreshChats);
+    }
 
-    socket.on('dm:updated', () => loadChats());
-    socket.on('groupchat:updated', () => loadChats());
-
-    socket.on('groupchat:removed', () => loadChats());
-    socket.on('groupchat:deleted', () => loadChats());
-
-    socket.on('dm:deleted', () => loadChats());
-
-    const unsubscribeRefresh = onChatListRefreshRequested(() => loadChats());
+    const unsubscribeRefresh = onChatListRefreshRequested(refreshChats);
 
     return () => {
       socket.disconnect();
       unsubscribeRefresh();
     };
-  }, []);
+  }, [refreshChats]);
+
+  // Reload on navigation (e.g. after creating a group or opening a chat).
+  useEffect(() => {
+    refreshChats();
+  }, [pathname, refreshChats]);
 
   useEffect(() => {
-    loadChats();
-  }, [pathname]);
+    const query = searchQuery.trim();
+    if (!query) return;
 
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
     const timeout = setTimeout(() => {
-      apiFetch(`/api/users/search/${encodeURIComponent(searchQuery)}`)
+      apiFetch(`/api/users/search/${encodeURIComponent(query)}`)
         .then(setSearchResults)
         .catch(() => setSearchResults([]))
         .finally(() => setIsSearching(false));
-    }, 100);
+    }, 200);
 
     return () => clearTimeout(timeout);
   }, [searchQuery]);
+
+  function handleSearchChange(value: string) {
+    setSearchQuery(value);
+    setIsSearching(Boolean(value.trim()));
+  }
 
   async function startConversation(userId: string) {
     const conv = await apiFetch('/api/conversations', {
@@ -138,33 +146,13 @@ export default function Sidebar() {
     router.push(`/messages/dm/${conv.id}`);
   }
 
-  useEffect(() => {
-  if (!pathname) return;
-
-  const isDm = pathname.startsWith('/messages/dm/');
-  const isGroup = pathname.startsWith('/messages/group/');
-  if (!isDm && !isGroup) return;
-
-  const chatId = pathname.split('/').pop();
-  if (!chatId) return;
-
-  setChats((prevChats) =>
-    prevChats.map((c) => (c.id === chatId ? { ...c, unread: false } : c))
-  );
-
-  // const endpoint = isDm
-  //   ? `/api/conversations/${chatId}/read`
-  //   : `/api/groupchats/${chatId}/read`;
-
-  // apiFetch(endpoint, { method: 'POST' }).catch((err) => {
-  //   console.error('Failed to mark chat as read:', err);
-  // });
-}, [pathname]);
-
   async function handleLogout() {
-    await apiFetch('/api/auth/logout', { method: 'POST' });
-    clearToken()
-    router.push('/login');
+    try {
+      await apiFetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+      clearToken();
+      router.push('/login');
+    }
   }
 
   return (
@@ -176,7 +164,7 @@ export default function Sidebar() {
             className="w-full bg-[#242F3D] rounded-full pl-9 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-[#3390EC]"
             placeholder="Search users..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
         <button
@@ -230,6 +218,8 @@ export default function Sidebar() {
           chats.map((chat) => {
             const href = chat.type === 'dm' ? `/messages/dm/${chat.id}` : `/messages/group/${chat.id}`;
             const isActive = pathname === href;
+            // The open chat is being read right now, so never show it as unread.
+            const unread = chat.unread && !isActive;
             return (
               <button
                 key={`${chat.type}-${chat.id}`}
@@ -246,11 +236,11 @@ export default function Sidebar() {
                 />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-white truncate">{chat.name}</p>
-                  <p className={`text-sm truncate ${chat.unread ? 'text-white font-medium' : 'text-[#6C7883]'}`}>
+                  <p className={`text-sm truncate ${unread ? 'text-white font-medium' : 'text-[#6C7883]'}`}>
                     {chat.lastMessage?.content || (chat.lastMessage ? '📎 Attachment' : 'No messages yet')}
                   </p>
                 </div>
-                {chat.unread && <span className="w-2.5 h-2.5 rounded-full bg-[#3390EC] shrink-0" />}
+                {unread && <span className="w-2.5 h-2.5 rounded-full bg-[#3390EC] shrink-0" />}
               </button>
             );
           })

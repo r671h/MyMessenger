@@ -11,8 +11,6 @@ interface ReactionBarProps {
 export default function ReactionBar({ reactions, currentUserId, onReact }: ReactionBarProps) {
   if (reactions.length === 0) return null;
 
-  const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
-
   const grouped = new Map<string, { count: number; mine: boolean }>();
   reactions.forEach((r) => {
     const entry = grouped.get(r.emoji) || { count: 0, mine: false };
